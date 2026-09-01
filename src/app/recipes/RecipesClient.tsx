@@ -107,14 +107,25 @@ export default function RecipesClient({
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-zinc-900">
-            {t.recipes}
-          </h1>
+        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <h1 className="text-4xl font-bold text-zinc-900">
+              {t.recipes}
+            </h1>
 
-          <p className="mt-2 text-zinc-600">
-            {t.recipesSubtitle}
-          </p>
+            <p className="mt-2 text-zinc-600">
+              {t.recipesSubtitle}
+            </p>
+          </div>
+
+          <Link
+            href="/recipes/new"
+            className="inline-flex rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700"
+          >
+            {language === "zh"
+              ? "+ 新增菜谱"
+              : "+ Add recipe"}
+          </Link>
         </div>
 
         <div className="mb-8 flex flex-col gap-3 sm:flex-row">

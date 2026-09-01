@@ -1,9 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+
 import { useLanguage } from "@/hooks/useLanguage";
 import { translations } from "@/lib/i18n";
-import Image from "next/image";
+
+import DeleteRecipeButton from "./DeleteRecipeButton";
+import FavoriteButton from "./FavoriteButton";
+import RatingStars from "./RatingStars";
 
 type RecipeDetail = {
   id: string;
@@ -42,10 +47,23 @@ type RecipeDetail = {
 
 type RecipeDetailClientProps = {
   recipe: RecipeDetail;
+  isOwner: boolean;
+  isLoggedIn: boolean;
+  isFavorited: boolean;
+
+  averageRating: number;
+  ratingCount: number;
+  userRating: number | null;
 };
 
 export default function RecipeDetailClient({
   recipe,
+  isOwner,
+  isLoggedIn,
+  isFavorited,
+  averageRating,
+  ratingCount,
+  userRating,
 }: RecipeDetailClientProps) {
   const language = useLanguage();
   const t = translations[language];
@@ -73,57 +91,104 @@ export default function RecipeDetailClient({
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10">
       <div className="mx-auto max-w-4xl">
+        {/* Back */}
         <Link
           href="/recipes"
-          className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+          className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
         >
           ← {t.backToRecipes}
         </Link>
 
+        {/* Image */}
         {recipe.imageUrl && (
-          <div className="relative mb-8 aspect-[16/9] overflow-hidden rounded-2xl bg-zinc-100">
+          <div className="relative mt-6 aspect-[16/9] overflow-hidden rounded-3xl bg-zinc-100">
             <Image
               src={recipe.imageUrl}
               alt={title}
               fill
               priority
+              sizes="(max-width: 896px) 100vw, 896px"
               className="object-cover"
             />
           </div>
         )}
 
-        <article className="mt-6 rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-600">
-              {category ??
-                (language === "zh"
-                  ? "未分类"
-                  : "Uncategorised")}
-            </span>
+        <div className="mt-6 border-t border-zinc-100 pt-6">
+          <RatingStars
+            recipeId={recipe.id}
+            averageRating={averageRating}
+            ratingCount={ratingCount}
+            userRating={userRating}
+            isLoggedIn={isLoggedIn}
+          />
+        </div>
 
-            <span className="text-sm text-zinc-500">
-              {t.prep}: {recipe.prepTime ?? "-"} min
-            </span>
+        {/* Recipe Card */}
+        <article className="mt-6 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          {/* Header */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-600">
+                  {category ??
+                    (language === "zh"
+                      ? "未分类"
+                      : "Uncategorised")}
+                </span>
 
-            <span className="text-sm text-zinc-500">
-              {t.cook}: {recipe.cookTime ?? "-"} min
-            </span>
+                <span className="text-sm text-zinc-500">
+                  {t.prep}: {recipe.prepTime ?? "-"} min
+                </span>
 
-            <span className="text-sm text-zinc-500">
-              {t.servings}: {recipe.servings ?? "-"}
-            </span>
+                <span className="text-sm text-zinc-500">
+                  {t.cook}: {recipe.cookTime ?? "-"} min
+                </span>
+
+                <span className="text-sm text-zinc-500">
+                  {t.servings}: {recipe.servings ?? "-"}
+                </span>
+              </div>
+
+              <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-900">
+                {title}
+              </h1>
+            </div>
+
+            {/* Actions */}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <FavoriteButton
+                recipeId={recipe.id}
+                initialFavorited={isFavorited}
+                isLoggedIn={isLoggedIn}
+              />
+
+              {isOwner && (
+                <>
+                  <Link
+                    href={`/recipes/${recipe.id}/edit`}
+                    className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    {language === "zh"
+                      ? "编辑菜谱"
+                      : "Edit recipe"}
+                  </Link>
+
+                  <DeleteRecipeButton
+                    recipeId={recipe.id}
+                  />
+                </>
+              )}
+            </div>
           </div>
 
-          <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-900">
-            {title}
-          </h1>
-
+          {/* Description */}
           {description && (
-            <p className="mt-4 text-lg leading-8 text-zinc-600">
+            <p className="mt-6 text-lg leading-8 text-zinc-600">
               {description}
             </p>
           )}
 
+          {/* Ingredients */}
           <section className="mt-10">
             <h2 className="text-2xl font-semibold text-zinc-900">
               {t.ingredients}
@@ -146,13 +211,13 @@ export default function RecipeDetailClient({
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 last:border-b-0"
+                      className="flex items-center justify-between gap-4 border-b border-zinc-100 px-5 py-3 last:border-b-0"
                     >
                       <span className="font-medium text-zinc-800">
                         {ingredientName}
                       </span>
 
-                      <span className="text-sm text-zinc-500">
+                      <span className="shrink-0 text-sm text-zinc-500">
                         {item.quantity ?? ""}{" "}
                         {item.unit ?? ""}
                       </span>
@@ -163,6 +228,7 @@ export default function RecipeDetailClient({
             )}
           </section>
 
+          {/* Instructions */}
           <section className="mt-10">
             <h2 className="text-2xl font-semibold text-zinc-900">
               {t.instructions}
