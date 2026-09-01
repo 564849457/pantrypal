@@ -1,8 +1,10 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+
+import { redirect } from "next/navigation";
+import { revalidateTag } from "next/cache";
 
 type IngredientInput = {
   nameEn: string;
@@ -11,7 +13,39 @@ type IngredientInput = {
   unit: string;
 };
 
-export async function createRecipe(formData: FormData) {
+export async function createRecipe(
+  formData: FormData,
+) {
+  // ---------------------------------------------
+  // Authentication
+  // ---------------------------------------------
+
+  const session = await auth();
+
+  if (!session?.user?.email) {
+    throw new Error(
+      "You must be signed in to create a recipe.",
+    );
+  }
+
+  // ---------------------------------------------
+  // Current user
+  // ---------------------------------------------
+
+  const user = await prisma.user.findUnique({
+    where: {
+      email: session.user.email,
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  // ---------------------------------------------
+  // Form fields
+  // ---------------------------------------------
+
   const titleEn = String(
     formData.get("titleEn") ?? "",
   ).trim();
@@ -60,9 +94,9 @@ export async function createRecipe(formData: FormData) {
     formData.get("ingredients") ?? "[]",
   );
 
-  // ------------------------------------------------
-  // Basic validation
-  // ------------------------------------------------
+  // ---------------------------------------------
+  // Required fields
+  // ---------------------------------------------
 
   if (
     !titleEn ||
@@ -74,9 +108,24 @@ export async function createRecipe(formData: FormData) {
     throw new Error("Missing required fields.");
   }
 
-  // ------------------------------------------------
-  // Parse ingredients
-  // ------------------------------------------------
+  // ---------------------------------------------
+  // Category validation
+  // ---------------------------------------------
+
+  const category =
+    await prisma.category.findUnique({
+      where: {
+        id: categoryId,
+      },
+    });
+
+  if (!category) {
+    throw new Error("Invalid category.");
+  }
+
+  // ---------------------------------------------
+  // Ingredients
+  // ---------------------------------------------
 
   let ingredients: IngredientInput[] = [];
 
@@ -94,9 +143,9 @@ export async function createRecipe(formData: FormData) {
       ingredient.nameZh.trim(),
   );
 
-  // ------------------------------------------------
-  // Validate numeric fields
-  // ------------------------------------------------
+  // ---------------------------------------------
+  // Number conversion
+  // ---------------------------------------------
 
   const prepTime = prepTimeValue
     ? Number(prepTimeValue)
@@ -111,100 +160,81 @@ export async function createRecipe(formData: FormData) {
     : null;
 
   if (
-    (prepTime !== null &&
-      (!Number.isFinite(prepTime) || prepTime < 0)) ||
-    (cookTime !== null &&
-      (!Number.isFinite(cookTime) || cookTime < 0)) ||
-    (servings !== null &&
-      (!Number.isFinite(servings) || servings < 1))
+    prepTime !== null &&
+    (!Number.isFinite(prepTime) || prepTime < 0)
   ) {
-    throw new Error("Invalid numeric values.");
+    throw new Error("Invalid preparation time.");
   }
 
-  // ------------------------------------------------
-  // Demo user
-  // ------------------------------------------------
-
-  const session = await auth();
-
-  if (!session?.user?.email) {
-    throw new Error("You must be signed in to create a recipe.");
+  if (
+    cookTime !== null &&
+    (!Number.isFinite(cookTime) || cookTime < 0)
+  ) {
+    throw new Error("Invalid cooking time.");
   }
 
-  const user = await prisma.user.findUnique({
-    where: {
-      email: session.user.email,
-    },
-  });
-
-  if (!user) {
-    throw new Error("User not found.");
+  if (
+    servings !== null &&
+    (!Number.isFinite(servings) || servings < 1)
+  ) {
+    throw new Error("Invalid servings.");
   }
 
-  // ------------------------------------------------
-  // Validate category
-  // ------------------------------------------------
-
-  const category = await prisma.category.findUnique({
-    where: {
-      id: categoryId,
-    },
-  });
-
-  if (!category) {
-    throw new Error("Category not found.");
-  }
-
-  // ------------------------------------------------
-  // Create Recipe + Ingredients in transaction
-  // ------------------------------------------------
+  // ---------------------------------------------
+  // Create recipe transaction
+  // ---------------------------------------------
 
   const recipe = await prisma.$transaction(
     async (tx) => {
-      const newRecipe = await tx.recipe.create({
-        data: {
-          titleEn,
-          titleZh,
+      const newRecipe =
+        await tx.recipe.create({
+          data: {
+            titleEn,
+            titleZh,
 
-          descriptionEn:
-            descriptionEn || null,
+            descriptionEn:
+              descriptionEn || null,
 
-          descriptionZh:
-            descriptionZh || null,
+            descriptionZh:
+              descriptionZh || null,
 
-          instructionsEn,
-          instructionsZh,
+            instructionsEn,
+            instructionsZh,
 
-          prepTime,
-          cookTime,
-          servings,
+            imageUrl:
+              imageUrl || null,
 
-          imageUrl:
-            imageUrl || null,
+            prepTime,
+            cookTime,
+            servings,
 
-          userId: user.id,
-          categoryId,
-        },
-      });
+            categoryId,
+
+            userId: user.id,
+          },
+        });
+
+      // -----------------------------------------
+      // Ingredients
+      // -----------------------------------------
 
       for (const item of validIngredients) {
-        const nameEn = item.nameEn.trim();
-        const nameZh = item.nameZh.trim();
-        const unit = item.unit.trim();
+        const nameEn =
+          item.nameEn.trim();
 
-        const quantityValue =
+        const nameZh =
+          item.nameZh.trim();
+
+        const quantity =
           item.quantity.trim() !== ""
             ? Number(item.quantity)
             : null;
 
         if (
-          quantityValue !== null &&
-          (!Number.isFinite(quantityValue) ||
-            quantityValue < 0)
+          quantity !== null &&
+          !Number.isFinite(quantity)
         ) {
-          throw new Error(
-            `Invalid quantity for ingredient: ${nameEn}`,
-          );
+          continue;
         }
 
         const ingredient =
@@ -212,9 +242,11 @@ export async function createRecipe(formData: FormData) {
             where: {
               nameEn,
             },
+
             update: {
               nameZh,
             },
+
             create: {
               nameEn,
               nameZh,
@@ -224,12 +256,13 @@ export async function createRecipe(formData: FormData) {
         await tx.recipeIngredient.create({
           data: {
             recipeId: newRecipe.id,
-            ingredientId: ingredient.id,
+            ingredientId:
+              ingredient.id,
 
-            quantity: quantityValue,
+            quantity,
 
             unit:
-              unit || null,
+              item.unit.trim() || null,
           },
         });
       }
@@ -238,9 +271,15 @@ export async function createRecipe(formData: FormData) {
     },
   );
 
-  // ------------------------------------------------
-  // Redirect to new recipe
-  // ------------------------------------------------
+  // ---------------------------------------------
+  // Clear cache
+  // ---------------------------------------------
+
+  revalidateTag("recipes", "max");
+
+  // ---------------------------------------------
+  // Redirect
+  // ---------------------------------------------
 
   redirect(`/recipes/${recipe.id}`);
 }
