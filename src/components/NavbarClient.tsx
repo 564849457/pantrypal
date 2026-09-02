@@ -1,40 +1,71 @@
 "use client";
 
 import Link from "next/link";
-import LanguageSwitcher from "./LanguageSwitcher";
+
 import { useLanguage } from "@/hooks/useLanguage";
-import { translations } from "@/lib/i18n";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function NavbarClient() {
   const language = useLanguage();
-  const t = translations[language];
 
   return (
-    <div className="flex flex-1 items-center justify-between gap-6">
+    <div className="flex flex-1 items-center justify-between">
+      {/* Logo */}
       <Link
         href="/"
-        className="text-xl font-bold tracking-tight text-zinc-900"
+        className="group relative text-xl font-bold tracking-tight text-white"
       >
-        PantryPal
+        <span className="relative z-10">
+          PantryPal
+        </span>
+
+        {/* subtle logo glow */}
+        <span className="absolute -inset-3 -z-0 rounded-xl bg-orange-500/0 blur-xl transition duration-300 group-hover:bg-orange-500/15" />
       </Link>
 
-      <div className="mr-4 flex items-center gap-5">
-        <nav className="hidden items-center gap-6 sm:flex">
-          <Link
-            href="/recipes"
-            className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
-          >
-            {t.recipes}
-          </Link>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Recipes */}
+        <Link
+          href="/recipes"
+          className="group relative overflow-hidden rounded-xl px-4 py-2 text-sm font-medium text-zinc-300 transition duration-300 hover:text-white"
+        >
+          {/* Glass hover layer */}
+          <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100">
+            <span className="absolute inset-0 rounded-xl border border-white/15 bg-white/10 backdrop-blur-xl" />
 
-          <Link
-            href="/favorites"
-            className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
-          >
-            {language === "zh" ? "收藏" : "Favorites"}
-          </Link>
-        </nav>
+            <span className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent" />
 
+            <span className="absolute -inset-4 bg-orange-500/10 blur-2xl" />
+          </span>
+
+          <span className="relative z-10">
+            {language === "zh"
+              ? "菜谱"
+              : "Recipes"}
+          </span>
+        </Link>
+
+        {/* Favorites */}
+        <Link
+          href="/favorites"
+          className="group relative overflow-hidden rounded-xl px-4 py-2 text-sm font-medium text-zinc-300 transition duration-300 hover:text-white"
+        >
+          <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100">
+            <span className="absolute inset-0 rounded-xl border border-white/15 bg-white/10 backdrop-blur-xl" />
+
+            <span className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent" />
+
+            <span className="absolute -inset-4 bg-orange-500/10 blur-2xl" />
+          </span>
+
+          <span className="relative z-10">
+            {language === "zh"
+              ? "收藏"
+              : "Favorites"}
+          </span>
+        </Link>
+
+        {/* Language */}
         <LanguageSwitcher />
       </div>
     </div>

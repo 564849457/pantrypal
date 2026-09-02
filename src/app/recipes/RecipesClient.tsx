@@ -1,14 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+
 import { useLanguage } from "@/hooks/useLanguage";
-import { translations } from "@/lib/i18n";
-import Image from "next/image";
+import SparkCanvasBackground from "@/components/SparkCanvasBackground";
+import BurnRecipeLink from "@/components/BurnRecipeLink";
 
 type Recipe = {
   id: string;
-
   imageUrl: string | null;
 
   titleZh: string;
@@ -27,6 +28,8 @@ type Recipe = {
   } | null;
 
   ingredients: {
+    id: string;
+
     ingredient: {
       nameZh: string;
       nameEn: string;
@@ -42,210 +45,571 @@ export default function RecipesClient({
   recipes,
 }: RecipesClientProps) {
   const language = useLanguage();
-  const t = translations[language];
 
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState("all");
+  const [searchTerm, setSearchTerm] =
+    useState("");
 
-  const categories = useMemo(() => {
-    const unique = new Map<
-      string,
-      {
-        nameEn: string;
-        nameZh: string;
-      }
-    >();
+  const [
+    selectedCategory,
+    setSelectedCategory,
+  ] = useState("all");
 
-    recipes.forEach((recipe) => {
-      if (!recipe.category) {
-        return;
-      }
+  const content = {
+    en: {
+      eyebrow: "Discover & cook",
+      title: "Recipes",
 
-      unique.set(recipe.category.nameEn, recipe.category);
-    });
+      subtitle:
+        "Browse, search and discover recipes from the PantryPal community.",
 
-    return Array.from(unique.values());
-  }, [recipes]);
+      searchPlaceholder:
+        "Search recipes, descriptions or ingredients...",
 
-  const filteredRecipes = useMemo(() => {
-    const query = search.trim().toLowerCase();
+      allCategories:
+        "All categories",
 
-    return recipes.filter((recipe) => {
-      const matchesCategory =
-        selectedCategory === "all" ||
-        recipe.category?.nameEn === selectedCategory;
+      addRecipe:
+        "Add recipe",
 
-      const matchesIngredient =
-        recipe.ingredients.some(({ ingredient }) => {
-          return (
-            ingredient.nameEn
-              .toLowerCase()
-              .includes(query) ||
-            ingredient.nameZh
-              .toLowerCase()
-              .includes(query)
+      viewRecipe:
+        "View recipe",
+
+      minutes:
+        "min",
+
+      servings:
+        "servings",
+
+      noRecipes:
+        "No recipes found.",
+
+      noRecipesSubtitle:
+        "Try changing your search or category filter.",
+
+      results:
+        "recipes",
+    },
+
+    zh: {
+      eyebrow:
+        "发现你的下一道料理",
+
+      title:
+        "菜谱",
+
+      subtitle:
+        "浏览、搜索并发现 PantryPal 社区中的菜谱。",
+
+      searchPlaceholder:
+        "搜索菜谱、描述或食材...",
+
+      allCategories:
+        "全部分类",
+
+      addRecipe:
+        "新增菜谱",
+
+      viewRecipe:
+        "查看菜谱",
+
+      minutes:
+        "分钟",
+
+      servings:
+        "份",
+
+      noRecipes:
+        "没有找到菜谱。",
+
+      noRecipesSubtitle:
+        "尝试修改搜索内容或分类筛选。",
+
+      results:
+        "个菜谱",
+    },
+  } as const;
+
+  const t =
+    content[language];
+
+  // ---------------------------------------------
+  // Categories
+  // ---------------------------------------------
+
+  const categories =
+    useMemo(() => {
+      const categoryMap =
+        new Map<
+          string,
+          {
+            value: string;
+            label: string;
+          }
+        >();
+
+      recipes.forEach(
+        (recipe) => {
+          if (!recipe.category) {
+            return;
+          }
+
+          const value =
+            recipe.category
+              .nameEn;
+
+          const label =
+            language === "zh"
+              ? recipe.category
+                  .nameZh
+              : recipe.category
+                  .nameEn;
+
+          categoryMap.set(
+            value,
+            {
+              value,
+              label,
+            },
           );
-        });
+        },
+      );
 
-      const matchesSearch =
-        query.length === 0 ||
-        recipe.titleEn.toLowerCase().includes(query) ||
-        recipe.titleZh.toLowerCase().includes(query) ||
-        recipe.descriptionEn
-          ?.toLowerCase()
-          .includes(query) ||
-        recipe.descriptionZh
-          ?.toLowerCase()
-          .includes(query) ||
-        matchesIngredient;
+      return Array.from(
+        categoryMap.values(),
+      );
+    }, [
+      recipes,
+      language,
+    ]);
 
-      return matchesCategory && matchesSearch;
-    });
-  }, [recipes, search, selectedCategory]);
+  // ---------------------------------------------
+  // Filtered recipes
+  // ---------------------------------------------
+
+  const filteredRecipes =
+    useMemo(() => {
+      const search =
+        searchTerm
+          .trim()
+          .toLowerCase();
+
+      return recipes.filter(
+        (recipe) => {
+          const matchesCategory =
+            selectedCategory ===
+              "all" ||
+            recipe.category
+              ?.nameEn ===
+              selectedCategory;
+
+          if (
+            !matchesCategory
+          ) {
+            return false;
+          }
+
+          if (!search) {
+            return true;
+          }
+
+          const searchableValues =
+            [
+              recipe.titleEn,
+              recipe.titleZh,
+
+              recipe.descriptionEn ??
+                "",
+
+              recipe.descriptionZh ??
+                "",
+
+              recipe.category
+                ?.nameEn ??
+                "",
+
+              recipe.category
+                ?.nameZh ??
+                "",
+
+              ...recipe.ingredients.flatMap(
+                (item) => [
+                  item
+                    .ingredient
+                    .nameEn,
+
+                  item
+                    .ingredient
+                    .nameZh,
+                ],
+              ),
+            ];
+
+          return searchableValues.some(
+            (value) =>
+              value
+                .toLowerCase()
+                .includes(
+                  search,
+                ),
+          );
+        },
+      );
+    }, [
+      recipes,
+      searchTerm,
+      selectedCategory,
+    ]);
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-10">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h1 className="text-4xl font-bold text-zinc-900">
-              {t.recipes}
-            </h1>
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+      {/* =========================================
+          GLOBAL FIRE BACKGROUND
+      ========================================== */}
 
-            <p className="mt-2 text-zinc-600">
-              {t.recipesSubtitle}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <SparkCanvasBackground />
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_8%,rgba(255,125,25,0.17),transparent_28%),radial-gradient(circle_at_10%_70%,rgba(255,70,0,0.07),transparent_28%)]" />
+
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/20 to-black/40" />
+      </div>
+
+      {/* =========================================
+          PAGE
+      ========================================== */}
+
+      <section className="relative z-10">
+        <div className="mx-auto max-w-6xl px-6 py-14 sm:py-16">
+          {/* Header */}
+
+          <div className="flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="mb-3 flex items-center gap-3">
+                <span className="h-px w-7 bg-orange-400" />
+
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-300/80">
+                  {
+                    t.eyebrow
+                  }
+                </p>
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                {t.title}
+              </h1>
+
+              <p className="mt-3 max-w-xl text-zinc-400">
+                {
+                  t.subtitle
+                }
+              </p>
+            </div>
+
+            {/* Add Recipe */}
+
+            <Link
+              href="/recipes/new"
+              className="group inline-flex w-fit items-center gap-2 rounded-xl border border-orange-300/20 bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_25px_rgba(249,115,22,0.18)] transition duration-300 hover:-translate-y-0.5 hover:bg-orange-400 hover:shadow-[0_0_35px_rgba(249,115,22,0.32)]"
+            >
+              <span className="text-lg leading-none">
+                +
+              </span>
+
+              {
+                t.addRecipe
+              }
+
+              <span className="transition-transform duration-300 group-hover:translate-x-0.5">
+                →
+              </span>
+            </Link>
+          </div>
+
+          {/* =====================================
+              FILTERS
+          ====================================== */}
+
+          <div className="mt-9 rounded-2xl border border-white/10 bg-zinc-950/55 p-4 shadow-xl backdrop-blur-xl">
+            <div className="flex flex-col gap-3 md:flex-row">
+              {/* Search */}
+
+              <div className="relative flex-1">
+                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="h-4 w-4 text-zinc-500"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="7"
+                    />
+
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                </div>
+
+                <input
+                  type="search"
+                  value={
+                    searchTerm
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setSearchTerm(
+                      event
+                        .target
+                        .value,
+                    )
+                  }
+                  placeholder={
+                    t.searchPlaceholder
+                  }
+                  aria-label={
+                    t.searchPlaceholder
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] py-3 pl-11 pr-4 text-sm text-white outline-none backdrop-blur-xl transition placeholder:text-zinc-500 hover:bg-white/[0.07] focus:border-orange-400/40 focus:bg-white/[0.08] focus:ring-2 focus:ring-orange-500/10"
+                />
+              </div>
+
+              {/* Category */}
+
+              <select
+                value={
+                  selectedCategory
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setSelectedCategory(
+                    event
+                      .target
+                      .value,
+                  )
+                }
+                aria-label={
+                  t.allCategories
+                }
+                className="min-w-[180px] cursor-pointer rounded-xl border border-white/10 bg-[#171310] px-4 py-3 text-sm font-medium text-zinc-300 outline-none transition hover:border-orange-300/20 hover:bg-[#211914] focus:border-orange-400/40 focus:ring-2 focus:ring-orange-500/10"
+              >
+                <option value="all">
+                  {
+                    t.allCategories
+                  }
+                </option>
+
+                {categories.map(
+                  (
+                    category,
+                  ) => (
+                    <option
+                      key={
+                        category.value
+                      }
+                      value={
+                        category.value
+                      }
+                    >
+                      {
+                        category.label
+                      }
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Results */}
+
+          <div className="mt-7 flex items-center justify-between">
+            <p className="text-sm text-zinc-500">
+              <span className="font-medium text-zinc-300">
+                {
+                  filteredRecipes.length
+                }
+              </span>{" "}
+              {t.results}
             </p>
           </div>
 
-          <Link
-            href="/recipes/new"
-            className="inline-flex rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700"
-          >
-            {language === "zh"
-              ? "+ 新增菜谱"
-              : "+ Add recipe"}
-          </Link>
-        </div>
+          {/* =====================================
+              RECIPE GRID
+          ====================================== */}
 
-        <div className="mb-8 flex flex-col gap-3 sm:flex-row">
-          <input
-            type="text"
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder={t.searchRecipes}
-            className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-zinc-500 sm:flex-1"
-          />
+          {filteredRecipes.length >
+          0 ? (
+            <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredRecipes.map(
+                (recipe) => {
+                  const title =
+                    language ===
+                    "zh"
+                      ? recipe.titleZh
+                      : recipe.titleEn;
 
-          <select
-            value={selectedCategory}
-            onChange={(event) =>
-              setSelectedCategory(event.target.value)
-            }
-            className="rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
-          >
-            <option value="all">
-              {t.allCategories}
-            </option>
+                  const description =
+                    language ===
+                    "zh"
+                      ? recipe
+                          .descriptionZh
+                      : recipe
+                          .descriptionEn;
 
-            {categories.map((category) => (
-              <option
-                key={category.nameEn}
-                value={category.nameEn}
-              >
-                {language === "zh"
-                  ? category.nameZh
-                  : category.nameEn}
-              </option>
-            ))}
-          </select>
-        </div>
+                  const category =
+                    language ===
+                    "zh"
+                      ? recipe
+                          .category
+                          ?.nameZh
+                      : recipe
+                          .category
+                          ?.nameEn;
 
-        {filteredRecipes.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center text-zinc-500">
-            {t.noRecipesFound}
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredRecipes.map((recipe) => {
-              const title =
-                language === "zh"
-                  ? recipe.titleZh
-                  : recipe.titleEn;
+                  const totalTime =
+                    (recipe.prepTime ??
+                      0) +
+                    (recipe.cookTime ??
+                      0);
 
-              const description =
-                language === "zh"
-                  ? recipe.descriptionZh
-                  : recipe.descriptionEn;
+                  const recipeHref =
+                    `/recipes/${recipe.id}`;
 
-              const category =
-                language === "zh"
-                  ? recipe.category?.nameZh
-                  : recipe.category?.nameEn;
-
-              return (
-                <article
-                  key={recipe.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  {recipe.imageUrl && (
-                    <div className="relative mb-5 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-100">
-                      <Image
-                        src={recipe.imageUrl}
-                        alt={title}
-                        fill
-                        className="object-cover transition duration-300 hover:scale-105"
-                      />
-                    </div>
-                  )}
-                  <div className="mb-3 flex items-center justify-between gap-4">
-                    <span className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-600">
-                      {category ??
-                        (language === "zh"
-                          ? "未分类"
-                          : "Uncategorised")}
-                    </span>
-
-                    <span className="text-sm text-zinc-500">
-                      {(recipe.prepTime ?? 0) +
-                        (recipe.cookTime ?? 0)}{" "}
-                      min
-                    </span>
-                  </div>
-
-                  <h2 className="text-xl font-semibold text-zinc-900">
-                    {title}
-                  </h2>
-
-                  {description && (
-                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-600">
-                      {description}
-                    </p>
-                  )}
-
-                  <div className="mt-6 flex items-center justify-between text-sm text-zinc-500">
-                    <span>
-                      {recipe.servings ?? "-"}{" "}
-                      {language === "zh"
-                        ? "份"
-                        : "servings"}
-                    </span>
-
-                    <Link
-                      href={`/recipes/${recipe.id}`}
-                      className="font-medium text-zinc-700 hover:text-zinc-950"
+                  return (
+                    <article
+                      key={recipe.id}
+                      data-recipe-card
+                      className="group relative isolate overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-orange-400/30 hover:shadow-[0_18px_50px_rgba(80,30,5,0.28)]"
                     >
-                      {t.viewRecipe} →
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                      {/* Hover glow */}
+
+                      <div className="pointer-events-none absolute -inset-10 z-0 bg-orange-500/0 blur-3xl transition duration-500 group-hover:bg-orange-500/[0.06]" />
+
+                      {/* Image */}
+
+                      {recipe.imageUrl && (
+                        <BurnRecipeLink
+                          href={
+                            recipeHref
+                          }
+                          className="relative z-10 block"
+                        >
+                          <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">
+                            <Image
+                              src={
+                                recipe.imageUrl
+                              }
+                              alt={
+                                title
+                              }
+                              fill
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                              className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                            />
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+                          </div>
+                        </BurnRecipeLink>
+                      )}
+
+                      {/* Content */}
+
+                      <div className="relative z-10 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-medium text-zinc-300 backdrop-blur-xl">
+                            {category ??
+                              (language ===
+                              "zh"
+                                ? "未分类"
+                                : "Uncategorised")}
+                          </span>
+
+                          {totalTime >
+                            0 && (
+                            <span className="whitespace-nowrap text-xs text-zinc-500">
+                              {
+                                totalTime
+                              }{" "}
+                              {
+                                t.minutes
+                              }
+                            </span>
+                          )}
+                        </div>
+
+                        <h2 className="mt-4 text-xl font-semibold tracking-tight text-white">
+                          {title}
+                        </h2>
+
+                        {description && (
+                          <p className="mt-2 line-clamp-2 min-h-12 text-sm leading-6 text-zinc-400">
+                            {
+                              description
+                            }
+                          </p>
+                        )}
+
+                        <div className="mt-5 flex items-center justify-between gap-4">
+                          {recipe.servings ? (
+                            <span className="text-xs text-zinc-500">
+                              {
+                                recipe.servings
+                              }{" "}
+                              {
+                                t.servings
+                              }
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+
+                          <BurnRecipeLink
+                            href={
+                              recipeHref
+                            }
+                            className="group/link inline-flex items-center gap-1 text-sm font-semibold text-zinc-300 transition hover:text-orange-300"
+                          >
+                            {
+                              t.viewRecipe
+                            }
+
+                            <span className="transition-transform duration-300 group-hover/link:translate-x-1">
+                              →
+                            </span>
+                          </BurnRecipeLink>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                },
+              )}
+            </div>
+          ) : (
+            /* Empty state */
+
+            <div className="mt-12 rounded-3xl border border-white/10 bg-zinc-950/60 px-6 py-20 text-center backdrop-blur-xl">
+              <div className="mx-auto h-2 w-2 rounded-full bg-orange-400 shadow-[0_0_22px_6px_rgba(251,146,60,0.45)]" />
+
+              <h2 className="mt-7 text-xl font-semibold text-white">
+                {
+                  t.noRecipes
+                }
+              </h2>
+
+              <p className="mt-2 text-sm text-zinc-400">
+                {
+                  t.noRecipesSubtitle
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }

@@ -10,6 +10,8 @@ import DeleteRecipeButton from "./DeleteRecipeButton";
 import FavoriteButton from "./FavoriteButton";
 import RatingStars from "./RatingStars";
 
+import SparkCanvasBackground from "@/components/SparkCanvasBackground";
+
 type RecipeDetail = {
   id: string;
 
@@ -89,155 +91,201 @@ export default function RecipeDetailClient({
       : recipe.category?.nameEn;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-10">
-      <div className="mx-auto max-w-4xl">
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+      {/* Background */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <SparkCanvasBackground />
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(255,125,25,0.16),transparent_30%),radial-gradient(circle_at_15%_75%,rgba(255,70,0,0.07),transparent_28%)]" />
+
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/25 to-black/45" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 mx-auto max-w-5xl px-6 py-10 sm:py-14">
         {/* Back */}
         <Link
           href="/recipes"
-          className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
+          className="group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
         >
-          ← {t.backToRecipes}
+          <span className="transition-transform group-hover:-translate-x-1">
+            ←
+          </span>
+
+          {t.backToRecipes}
         </Link>
 
-        {/* Image */}
-        {recipe.imageUrl && (
-          <div className="relative mt-6 aspect-[16/9] overflow-hidden rounded-3xl bg-zinc-100">
-            <Image
-              src={recipe.imageUrl}
-              alt={title}
-              fill
-              priority
-              sizes="(max-width: 896px) 100vw, 896px"
-              className="object-cover"
-            />
-          </div>
-        )}
-
-        <div className="mt-6 border-t border-zinc-100 pt-6">
-          <RatingStars
-            recipeId={recipe.id}
-            averageRating={averageRating}
-            ratingCount={ratingCount}
-            userRating={userRating}
-            isLoggedIn={isLoggedIn}
-          />
-        </div>
-
-        {/* Recipe Card */}
-        <article className="mt-6 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-          {/* Header */}
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-600">
-                  {category ??
-                    (language === "zh"
-                      ? "未分类"
-                      : "Uncategorised")}
-                </span>
-
-                <span className="text-sm text-zinc-500">
-                  {t.prep}: {recipe.prepTime ?? "-"} min
-                </span>
-
-                <span className="text-sm text-zinc-500">
-                  {t.cook}: {recipe.cookTime ?? "-"} min
-                </span>
-
-                <span className="text-sm text-zinc-500">
-                  {t.servings}: {recipe.servings ?? "-"}
-                </span>
-              </div>
-
-              <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-900">
-                {title}
-              </h1>
-            </div>
-
-            {/* Actions */}
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <FavoriteButton
-                recipeId={recipe.id}
-                initialFavorited={isFavorited}
-                isLoggedIn={isLoggedIn}
+        {/* Main Card */}
+        <article className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/70 shadow-2xl shadow-black/50 backdrop-blur-xl">
+          {/* Hero image */}
+          {recipe.imageUrl && (
+            <div className="relative aspect-[16/9] overflow-hidden bg-zinc-900">
+              <Image
+                src={recipe.imageUrl}
+                alt={title}
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 960px"
+                className="object-cover"
               />
 
-              {isOwner && (
-                <>
-                  <Link
-                    href={`/recipes/${recipe.id}/edit`}
-                    className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    {language === "zh"
-                      ? "编辑菜谱"
-                      : "Edit recipe"}
-                  </Link>
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-black/15 to-transparent" />
 
-                  <DeleteRecipeButton
-                    recipeId={recipe.id}
-                  />
-                </>
-              )}
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-zinc-950 to-transparent" />
             </div>
-          </div>
-
-          {/* Description */}
-          {description && (
-            <p className="mt-6 text-lg leading-8 text-zinc-600">
-              {description}
-            </p>
           )}
 
-          {/* Ingredients */}
-          <section className="mt-10">
-            <h2 className="text-2xl font-semibold text-zinc-900">
-              {t.ingredients}
-            </h2>
+          <div className="p-6 sm:p-8 lg:p-10">
+            {/* Header */}
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                {/* Metadata */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-1 text-xs font-semibold text-orange-200">
+                    {category ??
+                      (language === "zh"
+                        ? "未分类"
+                        : "Uncategorised")}
+                  </span>
 
-            {recipe.ingredients.length === 0 ? (
-              <p className="mt-4 text-zinc-500">
-                {language === "zh"
-                  ? "暂未添加食材。"
-                  : "No ingredients have been added yet."}
-              </p>
-            ) : (
-              <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200">
-                {recipe.ingredients.map((item) => {
-                  const ingredientName =
-                    language === "zh"
-                      ? item.ingredient.nameZh
-                      : item.ingredient.nameEn;
+                  {recipe.prepTime !== null && (
+                    <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-zinc-400">
+                      {t.prep}: {recipe.prepTime} min
+                    </span>
+                  )}
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between gap-4 border-b border-zinc-100 px-5 py-3 last:border-b-0"
-                    >
-                      <span className="font-medium text-zinc-800">
-                        {ingredientName}
-                      </span>
+                  {recipe.cookTime !== null && (
+                    <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-zinc-400">
+                      {t.cook}: {recipe.cookTime} min
+                    </span>
+                  )}
 
-                      <span className="shrink-0 text-sm text-zinc-500">
-                        {item.quantity ?? ""}{" "}
-                        {item.unit ?? ""}
-                      </span>
-                    </div>
-                  );
-                })}
+                  {recipe.servings !== null && (
+                    <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-zinc-400">
+                      {t.servings}: {recipe.servings}
+                    </span>
+                  )}
+                </div>
+
+                {/* Title */}
+                <h1 className="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                  {title}
+                </h1>
+
+                {/* Description */}
+                {description && (
+                  <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-400">
+                    {description}
+                  </p>
+                )}
               </div>
-            )}
-          </section>
 
-          {/* Instructions */}
-          <section className="mt-10">
-            <h2 className="text-2xl font-semibold text-zinc-900">
-              {t.instructions}
-            </h2>
+              {/* Actions */}
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <FavoriteButton
+                  recipeId={recipe.id}
+                  initialFavorited={isFavorited}
+                  isLoggedIn={isLoggedIn}
+                />
 
-            <div className="mt-4 whitespace-pre-line leading-8 text-zinc-700">
-              {instructions}
+                {isOwner && (
+                  <>
+                    <Link
+                      href={`/recipes/${recipe.id}/edit`}
+                      className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm font-medium text-zinc-300 backdrop-blur-xl transition hover:border-orange-300/30 hover:bg-white/10 hover:text-white"
+                    >
+                      {language === "zh"
+                        ? "编辑菜谱"
+                        : "Edit recipe"}
+                    </Link>
+
+                    <DeleteRecipeButton
+                      recipeId={recipe.id}
+                    />
+                  </>
+                )}
+              </div>
             </div>
-          </section>
+
+            {/* Rating */}
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <RatingStars
+                recipeId={recipe.id}
+                averageRating={averageRating}
+                ratingCount={ratingCount}
+                userRating={userRating}
+                isLoggedIn={isLoggedIn}
+              />
+            </div>
+
+            {/* Content grid */}
+            <div className="mt-10 grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+              {/* Ingredients */}
+              <section>
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="h-px w-6 bg-orange-400" />
+
+                  <h2 className="text-2xl font-semibold text-white">
+                    {t.ingredients}
+                  </h2>
+                </div>
+
+                {recipe.ingredients.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm text-zinc-500">
+                    {language === "zh"
+                      ? "暂未添加食材。"
+                      : "No ingredients have been added yet."}
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
+                    {recipe.ingredients.map((item) => {
+                      const ingredientName =
+                        language === "zh"
+                          ? item.ingredient.nameZh
+                          : item.ingredient.nameEn;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-5 border-b border-white/[0.07] px-5 py-4 last:border-b-0 transition hover:bg-white/[0.04]"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.65)]" />
+
+                            <span className="font-medium text-zinc-200">
+                              {ingredientName}
+                            </span>
+                          </div>
+
+                          <span className="shrink-0 text-sm text-zinc-500">
+                            {item.quantity ?? ""}{" "}
+                            {item.unit ?? ""}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              {/* Instructions */}
+              <section>
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="h-px w-6 bg-orange-400" />
+
+                  <h2 className="text-2xl font-semibold text-white">
+                    {t.instructions}
+                  </h2>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 leading-8 text-zinc-300 backdrop-blur-xl">
+                  <div className="whitespace-pre-line">
+                    {instructions}
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
         </article>
       </div>
     </main>
