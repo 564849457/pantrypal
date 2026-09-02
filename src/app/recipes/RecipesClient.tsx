@@ -484,106 +484,115 @@ export default function RecipesClient({
                     <article
                       key={recipe.id}
                       data-recipe-card
-                      className="group relative isolate overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 shadow-xl backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-orange-400/30 hover:shadow-[0_18px_50px_rgba(80,30,5,0.28)]"
+                      className="group relative isolate overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 shadow-xl backdrop-blur-md transition duration-300 hover:border-orange-400/30 hover:shadow-[0_18px_50px_rgba(80,30,5,0.28)]"
                     >
-                      {/* Hover glow */}
+                      {/* =====================================================
+                          FULL CARD CLICK AREA
+                          点击卡片任意位置都会触发燃烧
+                      ====================================================== */}
+
+                      <BurnRecipeLink
+                        href={recipeHref}
+                        className="absolute inset-0 z-30"
+                      >
+                        <span className="sr-only">
+                          {t.viewRecipe}: {title}
+                        </span>
+                      </BurnRecipeLink>
+
+                      {/* =====================================================
+                          HOVER GLOW
+                      ====================================================== */}
 
                       <div className="pointer-events-none absolute -inset-10 z-0 bg-orange-500/0 blur-3xl transition duration-500 group-hover:bg-orange-500/[0.06]" />
 
-                      {/* Image */}
+                      <div className="pointer-events-none absolute inset-x-10 top-0 z-20 h-px bg-gradient-to-r from-transparent via-orange-300/0 to-transparent transition duration-500 group-hover:via-orange-300/50" />
+
+                      {/* =====================================================
+                          IMAGE
+                      ====================================================== */}
 
                       {recipe.imageUrl && (
-                        <BurnRecipeLink
-                          href={
-                            recipeHref
-                          }
-                          className="relative z-10 block"
-                        >
-                          <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">
-                            <Image
-                              src={
-                                recipe.imageUrl
-                              }
-                              alt={
-                                title
-                              }
-                              fill
-                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                              className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                            />
+                        <div className="relative z-10 aspect-[4/3] overflow-hidden bg-zinc-900">
+                          <Image
+                            src={recipe.imageUrl}
+                            alt={title}
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover transition duration-700 group-hover:scale-[1.045]"
+                          />
 
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-                          </div>
-                        </BurnRecipeLink>
+                          {/* dark fade */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+                          {/* warm hover */}
+                          <div className="absolute inset-0 bg-orange-500/0 transition duration-500 group-hover:bg-orange-500/[0.04]" />
+                        </div>
                       )}
 
-                      {/* Content */}
+                      {/* =====================================================
+                          CONTENT
+                      ====================================================== */}
 
                       <div className="relative z-10 p-5">
+                        {/* Meta */}
+
                         <div className="flex items-center justify-between gap-3">
-                          <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-medium text-zinc-300 backdrop-blur-xl">
+                          <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-medium text-zinc-300 backdrop-blur-xl transition duration-300 group-hover:border-orange-300/20 group-hover:bg-orange-500/[0.07]">
                             {category ??
-                              (language ===
-                              "zh"
+                              (language === "zh"
                                 ? "未分类"
                                 : "Uncategorised")}
                           </span>
 
-                          {totalTime >
-                            0 && (
-                            <span className="whitespace-nowrap text-xs text-zinc-500">
-                              {
-                                totalTime
-                              }{" "}
-                              {
-                                t.minutes
-                              }
+                          {totalTime > 0 && (
+                            <span className="whitespace-nowrap text-xs text-zinc-500 transition duration-300 group-hover:text-zinc-400">
+                              {totalTime} {t.minutes}
                             </span>
                           )}
                         </div>
 
-                        <h2 className="mt-4 text-xl font-semibold tracking-tight text-white">
+                        {/* Title */}
+
+                        <h2 className="mt-4 text-xl font-semibold tracking-tight text-white transition duration-300 group-hover:text-orange-50">
                           {title}
                         </h2>
 
+                        {/* Description */}
+
                         {description && (
                           <p className="mt-2 line-clamp-2 min-h-12 text-sm leading-6 text-zinc-400">
-                            {
-                              description
-                            }
+                            {description}
                           </p>
                         )}
+
+                        {/* Footer */}
 
                         <div className="mt-5 flex items-center justify-between gap-4">
                           {recipe.servings ? (
                             <span className="text-xs text-zinc-500">
-                              {
-                                recipe.servings
-                              }{" "}
-                              {
-                                t.servings
-                              }
+                              {recipe.servings} {t.servings}
                             </span>
                           ) : (
                             <span />
                           )}
 
-                          <BurnRecipeLink
-                            href={
-                              recipeHref
-                            }
-                            className="group/link inline-flex items-center gap-1 text-sm font-semibold text-zinc-300 transition hover:text-orange-300"
-                          >
-                            {
-                              t.viewRecipe
-                            }
+                          {/* 这里只做视觉，不再单独套 Link */}
+                          <span className="group/link inline-flex items-center gap-1 text-sm font-semibold text-zinc-300 transition duration-300 group-hover:text-orange-300">
+                            {t.viewRecipe}
 
-                            <span className="transition-transform duration-300 group-hover/link:translate-x-1">
+                            <span className="transition-transform duration-300 group-hover:translate-x-1">
                               →
                             </span>
-                          </BurnRecipeLink>
+                          </span>
                         </div>
                       </div>
+
+                      {/* =====================================================
+                          BOTTOM GLOW
+                      ====================================================== */}
+
+                      <div className="pointer-events-none absolute inset-x-10 bottom-0 z-20 h-px bg-gradient-to-r from-transparent via-orange-500/0 to-transparent transition duration-500 group-hover:via-orange-500/30" />
                     </article>
                   );
                 },

@@ -14,6 +14,11 @@ type BurnRecipeLinkProps = {
   duration?: number;
 };
 
+type ParticleType =
+  | "fire"
+  | "ember"
+  | "ash";
+
 type Particle = {
   x: number;
   y: number;
@@ -29,7 +34,12 @@ type Particle = {
   alpha: number;
   glow: number;
 
-  type: "fire" | "ember" | "ash";
+  type: ParticleType;
+};
+
+type BurnPoint = {
+  x: number;
+  y: number;
 };
 
 function random(
@@ -43,128 +53,271 @@ function random(
   );
 }
 
+function clamp(
+  value: number,
+  min: number,
+  max: number,
+) {
+  return Math.max(
+    min,
+    Math.min(
+      max,
+      value,
+    ),
+  );
+}
+
 /* =========================================================
-   Irregular burn front
+   Distance
 ========================================================= */
 
-function getBurnFrontY(
-  x: number,
+function distance(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+) {
+  const dx =
+    x2 - x1;
+
+  const dy =
+    y2 - y1;
+
+  return Math.sqrt(
+    dx * dx +
+      dy * dy,
+  );
+}
+
+/* =========================================================
+   Maximum radius needed to cover card
+========================================================= */
+
+function getMaximumRadius(
+  originX: number,
+  originY: number,
   width: number,
   height: number,
-  progress: number,
 ) {
-  /*
-   * Base burn travels upward
-   *
-   * progress 0 -> bottom
-   * progress 1 -> above top
-   */
+  const corners: Array<
+    [number, number]
+  > = [
+    [0, 0],
+    [width, 0],
+    [0, height],
+    [width, height],
+  ];
 
-  const base =
-    height -
-    progress *
-      (height + 90);
+  let maxRadius = 0;
 
-  /*
-   * Combine multiple waves.
-   * This is what makes the burn edge uneven.
-   */
+  for (
+    const [x, y] of corners
+  ) {
+    maxRadius =
+      Math.max(
+        maxRadius,
+        distance(
+          originX,
+          originY,
+          x,
+          y,
+        ),
+      );
+  }
 
+  return maxRadius;
+}
+
+/* =========================================================
+   Easing
+========================================================= */
+
+function easeOutCubic(
+  value: number,
+) {
+  return (
+    1 -
+    Math.pow(
+      1 - value,
+      3,
+    )
+  );
+}
+
+/* =========================================================
+   Irregular radial edge
+========================================================= */
+
+function getIrregularRadius(
+  angle: number,
+  baseRadius: number,
+  progress: number,
+  seed: number,
+  maximumRadius: number,
+) {
   const wave1 =
     Math.sin(
-      x * 0.025 +
-        progress * 8,
-    ) * 18;
+      angle * 5 +
+        seed +
+        progress * 4.5,
+    ) * 13;
 
   const wave2 =
     Math.sin(
-      x * 0.067 -
-        progress * 11,
-    ) * 10;
+      angle * 9 -
+        seed * 0.8 -
+        progress * 7,
+    ) * 8;
 
   const wave3 =
     Math.sin(
-      x * 0.135 +
-        progress * 17,
-    ) * 5;
+      angle * 17 +
+        seed * 1.3 +
+        progress * 10,
+    ) * 4;
 
-  /*
-   * Larger-scale hills
-   */
-
-  const hill =
+  const wave4 =
     Math.sin(
-      (x / width) *
-        Math.PI *
-        3.4 +
-        1.2,
-    ) * 13;
+      angle * 27 -
+        progress * 13,
+    ) * 2;
 
-  return (
-    base +
-    wave1 +
-    wave2 +
-    wave3 +
-    hill
+  const irregularityScale =
+    Math.min(
+      1,
+      baseRadius / 65,
+    );
+
+  const result =
+    baseRadius +
+    (
+      wave1 +
+      wave2 +
+      wave3 +
+      wave4
+    ) *
+      irregularityScale;
+
+  return clamp(
+    result,
+    0,
+    maximumRadius,
   );
 }
 
 /* =========================================================
-   Dynamic clip path
+   Build burn boundary
+
+   IMPORTANT:
+   We do NOT clamp X/Y to card bounds.
+   This prevents straight-line / rectangle artifacts.
 ========================================================= */
 
-function buildBurnClipPath(
-  width: number,
-  height: number,
+function buildBurnPoints(
+  originX: number,
+  originY: number,
+  radius: number,
   progress: number,
+  seed: number,
+  maximumRadius: number,
 ) {
-  /*
-   * Keep everything ABOVE the burn front.
-   * Everything below disappears completely.
-   */
+  const points: BurnPoint[] =
+    [];
 
-  const points: string[] = [];
-
-  points.push("0px 0px");
-  points.push(
-    `${width}px 0px`,
-  );
-
-  /*
-   * Build right -> left along irregular burn edge
-   */
-
-  const segments = 28;
+  const segments =
+    84;
 
   for (
-    let i = segments;
-    i >= 0;
-    i -= 1
+    let i = 0;
+    i < segments;
+    i += 1
   ) {
-    const x =
-      (i / segments) *
-      width;
+    const angle =
+      (
+        i /
+        segments
+      ) *
+      Math.PI *
+      2;
 
-    const y =
-      getBurnFrontY(
-        x,
-        width,
-        height,
+    const irregularRadius =
+      getIrregularRadius(
+        angle,
+        radius,
         progress,
+        seed,
+        maximumRadius,
       );
 
-    points.push(
-      `${x}px ${Math.max(-80, Math.min(height + 20, y))}px`,
-    );
+    const x =
+      originX +
+      Math.cos(angle) *
+        irregularRadius;
+
+    const y =
+      originY +
+      Math.sin(angle) *
+        irregularRadius;
+
+    points.push({
+      x,
+      y,
+    });
   }
 
-  return `polygon(${points.join(
-    ", ",
-  )})`;
+  return points;
 }
 
 /* =========================================================
-   Burn
+   SVG clip path
+
+   Full rectangle minus irregular burn hole
+========================================================= */
+
+function buildClipPathData(
+  width: number,
+  height: number,
+  burnPoints: BurnPoint[],
+) {
+  let data =
+    `M 0 0 ` +
+    `H ${width} ` +
+    `V ${height} ` +
+    `H 0 Z `;
+
+  if (
+    burnPoints.length ===
+    0
+  ) {
+    return data;
+  }
+
+  const first =
+    burnPoints[0];
+
+  data +=
+    `M ${first.x} ${first.y} `;
+
+  for (
+    let i = 1;
+    i <
+    burnPoints.length;
+    i += 1
+  ) {
+    const point =
+      burnPoints[i];
+
+    data +=
+      `L ${point.x} ${point.y} `;
+  }
+
+  data += "Z";
+
+  return data;
+}
+
+/* =========================================================
+   Start burn animation
 ========================================================= */
 
 function startBurnAnimation(
@@ -193,35 +346,185 @@ function startBurnAnimation(
   const height =
     rect.height;
 
-  /*
-   * Important:
-   * FX canvas is NOT inside the card.
-   *
-   * Otherwise clip-path would cut the particles as well.
-   */
+  /* =======================================================
+     Click origin
+  ======================================================== */
+
+  const originX =
+    clamp(
+      clickX -
+        rect.left,
+      0,
+      width,
+    );
+
+  const originY =
+    clamp(
+      clickY -
+        rect.top,
+      0,
+      height,
+    );
+
+  const maximumRadius =
+    getMaximumRadius(
+      originX,
+      originY,
+      width,
+      height,
+    );
+
+  const burnSeed =
+    Math.random() *
+    Math.PI *
+    20;
+
+  /* =======================================================
+     SVG clip path
+  ======================================================== */
+
+  const svgNamespace =
+    "http://www.w3.org/2000/svg";
+
+  const svg =
+    document.createElementNS(
+      svgNamespace,
+      "svg",
+    );
+
+  const defs =
+    document.createElementNS(
+      svgNamespace,
+      "defs",
+    );
+
+  const clipPathElement =
+    document.createElementNS(
+      svgNamespace,
+      "clipPath",
+    );
+
+  const path =
+    document.createElementNS(
+      svgNamespace,
+      "path",
+    );
+
+  const clipId =
+    `recipe-burn-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+
+  svg.setAttribute(
+    "width",
+    "0",
+  );
+
+  svg.setAttribute(
+    "height",
+    "0",
+  );
+
+  svg.style.position =
+    "fixed";
+
+  svg.style.pointerEvents =
+    "none";
+
+  clipPathElement.setAttribute(
+    "id",
+    clipId,
+  );
+
+  clipPathElement.setAttribute(
+    "clipPathUnits",
+    "userSpaceOnUse",
+  );
+
+  path.setAttribute(
+    "clip-rule",
+    "evenodd",
+  );
+
+  path.setAttribute(
+    "fill-rule",
+    "evenodd",
+  );
+
+  clipPathElement.appendChild(
+    path,
+  );
+
+  defs.appendChild(
+    clipPathElement,
+  );
+
+  svg.appendChild(
+    defs,
+  );
+
+  document.body.appendChild(
+    svg,
+  );
+
+  card.style.clipPath =
+    `url(#${clipId})`;
+
+  card.style.setProperty(
+    "-webkit-clip-path",
+    `url(#${clipId})`,
+  );
+
+  card.style.transition =
+    "none";
+
+  /* =======================================================
+     FX canvas
+  ======================================================== */
+
+  const extraTop =
+    90;
+
+  const extraBottom =
+    60;
+
+  const extraSide =
+    60;
+
+  const canvasWidth =
+    width +
+    extraSide * 2;
+
+  const canvasHeight =
+    height +
+    extraTop +
+    extraBottom;
 
   const fx =
     document.createElement(
       "div",
     );
 
-  fx.className =
-    "recipe-burn-fx";
-
   fx.style.position =
     "fixed";
 
   fx.style.left =
-    `${rect.left}px`;
+    `${
+      rect.left -
+      extraSide
+    }px`;
 
   fx.style.top =
-    `${rect.top}px`;
+    `${
+      rect.top -
+      extraTop
+    }px`;
 
   fx.style.width =
-    `${width}px`;
+    `${canvasWidth}px`;
 
   fx.style.height =
-    `${height}px`;
+    `${canvasHeight}px`;
 
   fx.style.zIndex =
     "9998";
@@ -237,20 +540,45 @@ function startBurnAnimation(
       "canvas",
     );
 
-  canvas.className =
-    "recipe-burn-canvas";
+  canvas.style.position =
+    "absolute";
 
-  fx.appendChild(canvas);
+  canvas.style.inset =
+    "0";
+
+  canvas.style.width =
+    `${canvasWidth}px`;
+
+  canvas.style.height =
+    `${canvasHeight}px`;
+
+  fx.appendChild(
+    canvas,
+  );
 
   document.body.appendChild(
     fx,
   );
 
   const context =
-    canvas.getContext("2d");
+    canvas.getContext(
+      "2d",
+    );
 
   if (!context) {
     fx.remove();
+
+    svg.remove();
+
+    card.style.clipPath =
+      "";
+
+    card.style.removeProperty(
+      "-webkit-clip-path",
+    );
+
+    card.style.transition =
+      "";
 
     delete card.dataset
       .burning;
@@ -263,6 +591,9 @@ function startBurnAnimation(
   const ctx: CanvasRenderingContext2D =
     context;
 
+  const canvasElement: HTMLCanvasElement =
+    canvas;
+
   const dpr =
     Math.min(
       window.devicePixelRatio ||
@@ -270,63 +601,17 @@ function startBurnAnimation(
       2,
     );
 
-  /*
-   * Extra space above card so flying sparks
-   * don't get clipped.
-   */
-
-  const extraTop = 100;
-  const extraSide = 40;
-
-  fx.style.left =
-    `${
-      rect.left -
-      extraSide
-    }px`;
-
-  fx.style.top =
-    `${
-      rect.top -
-      extraTop
-    }px`;
-
-  fx.style.width =
-    `${
-      width +
-      extraSide * 2
-    }px`;
-
-  fx.style.height =
-    `${
-      height +
-      extraTop +
-      30
-    }px`;
-
-  const canvasWidth =
-    width +
-    extraSide * 2;
-
-  const canvasHeight =
-    height +
-    extraTop +
-    30;
-
-  canvas.width =
+  canvasElement.width =
     Math.floor(
-      canvasWidth * dpr,
+      canvasWidth *
+        dpr,
     );
 
-  canvas.height =
+  canvasElement.height =
     Math.floor(
-      canvasHeight * dpr,
+      canvasHeight *
+        dpr,
     );
-
-  canvas.style.width =
-    `${canvasWidth}px`;
-
-  canvas.style.height =
-    `${canvasHeight}px`;
 
   ctx.setTransform(
     dpr,
@@ -337,11 +622,6 @@ function startBurnAnimation(
     0,
   );
 
-  /*
-   * Coordinate offsets:
-   * card coordinates -> FX canvas coordinates
-   */
-
   const offsetX =
     extraSide;
 
@@ -351,26 +631,39 @@ function startBurnAnimation(
   const particles: Particle[] =
     [];
 
-  let animationId = 0;
-
   const startTime =
     performance.now();
 
+  let animationId =
+    0;
+
   /* =======================================================
-     Particle creation
+     Add particle
   ======================================================== */
 
   function addParticle(
     x: number,
     y: number,
-    type:
-      | "fire"
-      | "ember"
-      | "ash" =
-      "ember",
+    angle: number,
+    type: ParticleType,
   ) {
+    const outwardX =
+      Math.cos(
+        angle,
+      );
+
+    const outwardY =
+      Math.sin(
+        angle,
+      );
+
+    /* ---------------------------------------
+       FIRE
+    --------------------------------------- */
+
     if (
-      type === "fire"
+      type ===
+      "fire"
     ) {
       particles.push({
         x:
@@ -381,37 +674,51 @@ function startBurnAnimation(
           y +
           offsetY,
 
-        vx: random(
-          -0.9,
-          0.9,
-        ),
+        vx:
+          outwardX *
+            random(
+              0.05,
+              0.7,
+            ) +
+          random(
+            -0.45,
+            0.45,
+          ),
 
-        vy: random(
-          -4.8,
-          -1.9,
-        ),
+        vy:
+          -random(
+            1.7,
+            4.2,
+          ) +
+          outwardY *
+            0.25,
 
-        size: random(
-          2.2,
-          5.5,
-        ),
+        size:
+          random(
+            1.8,
+            4.8,
+          ),
 
-        life: 0,
+        life:
+          0,
 
-        maxLife: random(
-          18,
-          34,
-        ),
+        maxLife:
+          random(
+            16,
+            32,
+          ),
 
-        alpha: random(
-          0.7,
-          1,
-        ),
+        alpha:
+          random(
+            0.65,
+            1,
+          ),
 
-        glow: random(
-          12,
-          26,
-        ),
+        glow:
+          random(
+            10,
+            22,
+          ),
 
         type,
       });
@@ -419,8 +726,13 @@ function startBurnAnimation(
       return;
     }
 
+    /* ---------------------------------------
+       ASH
+    --------------------------------------- */
+
     if (
-      type === "ash"
+      type ===
+      "ash"
     ) {
       particles.push({
         x:
@@ -431,40 +743,61 @@ function startBurnAnimation(
           y +
           offsetY,
 
-        vx: random(
-          -1.5,
-          1.5,
-        ),
+        vx:
+          outwardX *
+            random(
+              0.15,
+              0.9,
+            ) +
+          random(
+            -0.45,
+            0.45,
+          ),
 
-        vy: random(
-          -2.3,
-          -0.4,
-        ),
+        vy:
+          outwardY *
+            random(
+              0.1,
+              0.55,
+            ) -
+          random(
+            0.15,
+            0.7,
+          ),
 
-        size: random(
-          1,
-          3.2,
-        ),
+        size:
+          random(
+            0.7,
+            2.5,
+          ),
 
-        life: 0,
+        life:
+          0,
 
-        maxLife: random(
-          35,
-          75,
-        ),
+        maxLife:
+          random(
+            30,
+            62,
+          ),
 
-        alpha: random(
-          0.3,
-          0.7,
-        ),
+        alpha:
+          random(
+            0.2,
+            0.55,
+          ),
 
-        glow: 0,
+        glow:
+          0,
 
         type,
       });
 
       return;
     }
+
+    /* ---------------------------------------
+       EMBER
+    --------------------------------------- */
 
     particles.push({
       x:
@@ -475,74 +808,104 @@ function startBurnAnimation(
         y +
         offsetY,
 
-      vx: random(
-        -1.8,
-        1.8,
-      ),
+      vx:
+        outwardX *
+          random(
+            0.3,
+            1.55,
+          ) +
+        random(
+          -0.55,
+          0.55,
+        ),
 
-      vy: random(
-        -5,
-        -1.2,
-      ),
+      vy:
+        outwardY *
+          random(
+            0.1,
+            0.75,
+          ) -
+        random(
+          0.8,
+          2.8,
+        ),
 
-      size: random(
-        1.1,
-        3.5,
-      ),
+      size:
+        random(
+          0.8,
+          2.8,
+        ),
 
-      life: 0,
+      life:
+        0,
 
-      maxLife: random(
-        25,
-        55,
-      ),
+      maxLife:
+        random(
+          20,
+          48,
+        ),
 
-      alpha: random(
-        0.5,
-        1,
-      ),
+      alpha:
+        random(
+          0.45,
+          1,
+        ),
 
-      glow: random(
-        8,
-        18,
-      ),
+      glow:
+        random(
+          6,
+          16,
+        ),
 
       type,
     });
   }
 
   /* =======================================================
-     Initial click explosion
+     Initial ignition burst
   ======================================================== */
 
-  function initialBurst() {
-    const localX =
-      clickX -
-      rect.left;
-
-    const localY =
-      clickY -
-      rect.top;
-
+  function createIgnitionBurst() {
     for (
       let i = 0;
-      i < 30;
+      i < 32;
       i += 1
     ) {
+      const angle =
+        random(
+          0,
+          Math.PI *
+            2,
+        );
+
+      const radius =
+        random(
+          0,
+          14,
+        );
+
+      const x =
+        originX +
+        Math.cos(
+          angle,
+        ) *
+          radius;
+
+      const y =
+        originY +
+        Math.sin(
+          angle,
+        ) *
+          radius;
+
       addParticle(
-        localX +
-          random(
-            -15,
-            15,
-          ),
-
-        localY +
-          random(
-            -15,
-            15,
-          ),
-
-        "ember",
+        x,
+        y,
+        angle,
+        Math.random() <
+          0.78
+          ? "ember"
+          : "fire",
       );
     }
   }
@@ -562,6 +925,10 @@ function startBurnAnimation(
             particle.maxLife,
       );
 
+    /* ---------------------------------------
+       Ash
+    --------------------------------------- */
+
     if (
       particle.type ===
       "ash"
@@ -570,9 +937,9 @@ function startBurnAnimation(
 
       ctx.fillStyle =
         `rgba(
-          70,
+          78,
+          64,
           55,
-          48,
           ${
             particle.alpha *
             ratio
@@ -583,12 +950,13 @@ function startBurnAnimation(
         particle.x,
         particle.y,
         Math.max(
-          0.5,
+          0.4,
           particle.size *
             ratio,
         ),
         0,
-        Math.PI * 2,
+        Math.PI *
+          2,
       );
 
       ctx.fill();
@@ -597,8 +965,11 @@ function startBurnAnimation(
     }
 
     const radius =
-      particle.size *
-      ratio;
+      Math.max(
+        0.45,
+        particle.size *
+          ratio,
+      );
 
     const glowRadius =
       radius +
@@ -616,6 +987,10 @@ function startBurnAnimation(
         glowRadius,
       );
 
+    /* ---------------------------------------
+       Fire
+    --------------------------------------- */
+
     if (
       particle.type ===
       "fire"
@@ -625,7 +1000,7 @@ function startBurnAnimation(
         `rgba(
           255,
           255,
-          220,
+          225,
           ${
             particle.alpha *
             ratio
@@ -634,38 +1009,47 @@ function startBurnAnimation(
       );
 
       gradient.addColorStop(
-        0.2,
+        0.18,
         `rgba(
           255,
-          210,
-          90,
+          215,
+          100,
           ${
-            0.9 *
             particle.alpha *
-            ratio
+            ratio *
+            0.9
           }
         )`,
       );
 
       gradient.addColorStop(
-        0.55,
+        0.52,
         `rgba(
           255,
-          85,
-          10,
+          100,
+          15,
           ${
-            0.45 *
-            ratio
+            ratio *
+            0.44
           }
         )`,
+      );
+
+      gradient.addColorStop(
+        1,
+        "rgba(255,50,0,0)",
       );
     } else {
+      /* -------------------------------------
+         Ember
+      ------------------------------------- */
+
       gradient.addColorStop(
         0,
         `rgba(
           255,
-          235,
-          170,
+          245,
+          200,
           ${
             particle.alpha *
             ratio
@@ -674,36 +1058,36 @@ function startBurnAnimation(
       );
 
       gradient.addColorStop(
-        0.3,
+        0.25,
         `rgba(
           255,
-          145,
-          40,
+          160,
+          45,
           ${
-            0.72 *
-            ratio
+            ratio *
+            0.75
           }
         )`,
       );
 
       gradient.addColorStop(
-        0.7,
+        0.65,
         `rgba(
           255,
-          60,
+          70,
           5,
           ${
-            0.22 *
-            ratio
+            ratio *
+            0.22
           }
         )`,
       );
-    }
 
-    gradient.addColorStop(
-      1,
-      "rgba(255,60,0,0)",
-    );
+      gradient.addColorStop(
+        1,
+        "rgba(255,50,0,0)",
+      );
+    }
 
     ctx.beginPath();
 
@@ -715,18 +1099,21 @@ function startBurnAnimation(
       particle.y,
       glowRadius,
       0,
-      Math.PI * 2,
+      Math.PI *
+        2,
     );
 
     ctx.fill();
+
+    /* Bright core */
 
     ctx.beginPath();
 
     ctx.fillStyle =
       `rgba(
         255,
-        225,
-        150,
+        235,
+        175,
         ${
           particle.alpha *
           ratio
@@ -736,25 +1123,24 @@ function startBurnAnimation(
     ctx.arc(
       particle.x,
       particle.y,
-      Math.max(
-        0.5,
-        radius,
-      ),
+      radius,
       0,
-      Math.PI * 2,
+      Math.PI *
+        2,
     );
 
     ctx.fill();
   }
 
   /* =======================================================
-     Physics
+     Update particle
   ======================================================== */
 
   function updateParticle(
     particle: Particle,
   ) {
-    particle.life += 1;
+    particle.life +=
+      1;
 
     particle.x +=
       particle.vx;
@@ -762,34 +1148,29 @@ function startBurnAnimation(
     particle.y +=
       particle.vy;
 
-    /*
-     * Fire floats upward.
-     * Ash falls/slows differently.
-     */
-
     if (
       particle.type ===
       "ash"
     ) {
       particle.vy +=
-        0.015;
+        0.018;
 
       particle.vx +=
         Math.sin(
           particle.life *
-            0.15,
+            0.18,
         ) *
-        0.015;
+        0.016;
     } else {
       particle.vy -=
-        0.006;
+        0.003;
 
       particle.vx +=
         Math.sin(
           particle.life *
             0.22,
         ) *
-        0.018;
+        0.01;
     }
 
     particle.vx *=
@@ -797,117 +1178,272 @@ function startBurnAnimation(
   }
 
   /* =======================================================
-     Burn edge
+     Draw burn edge
+
+     IMPORTANT:
+     Burn geometry is unrestricted,
+     but rendering is CLIPPED to card bounds.
+
+     This removes the orange rectangle artifact.
   ======================================================== */
 
   function drawBurnEdge(
+    burnPoints: BurnPoint[],
     progress: number,
   ) {
+    if (
+      burnPoints.length <
+      2
+    ) {
+      return;
+    }
+
     ctx.save();
 
-    /*
-     * Draw many small glowing segments
-     * following the exact irregular front.
-     */
+    /* ---------------------------------------
+       Correct hard boundary:
+       clip canvas rendering to card rectangle
+    --------------------------------------- */
+
+    ctx.beginPath();
+
+    ctx.rect(
+      offsetX,
+      offsetY,
+      width,
+      height,
+    );
+
+    ctx.clip();
+
+    ctx.lineJoin =
+      "round";
+
+    ctx.lineCap =
+      "round";
+
+    ctx.beginPath();
 
     for (
-      let x = 0;
-      x < width;
-      x += 4
+      let i = 0;
+      i <
+      burnPoints.length;
+      i += 1
     ) {
+      const point =
+        burnPoints[i];
+
+      const x =
+        point.x +
+        offsetX;
+
       const y =
-        getBurnFrontY(
-          x,
-          width,
-          height,
-          progress,
-        );
+        point.y +
+        offsetY;
 
       if (
-        y < -30 ||
-        y >
-          height + 30
+        i === 0
       ) {
-        continue;
+        ctx.moveTo(
+          x,
+          y,
+        );
+      } else {
+        ctx.lineTo(
+          x,
+          y,
+        );
       }
-
-      const nextY =
-        getBurnFrontY(
-          x + 4,
-          width,
-          height,
-          progress,
-        );
-
-      const gradient =
-        ctx.createRadialGradient(
-          x +
-            offsetX,
-          y +
-            offsetY,
-          0,
-
-          x +
-            offsetX,
-          y +
-            offsetY,
-          16,
-        );
-
-      gradient.addColorStop(
-        0,
-        "rgba(255,235,150,0.85)",
-      );
-
-      gradient.addColorStop(
-        0.2,
-        "rgba(255,140,35,0.62)",
-      );
-
-      gradient.addColorStop(
-        0.6,
-        "rgba(255,55,5,0.22)",
-      );
-
-      gradient.addColorStop(
-        1,
-        "rgba(255,40,0,0)",
-      );
-
-      ctx.strokeStyle =
-        gradient;
-
-      ctx.lineWidth =
-        random(
-          2,
-          5,
-        );
-
-      ctx.beginPath();
-
-      ctx.moveTo(
-        x +
-          offsetX,
-        y +
-          offsetY,
-      );
-
-      ctx.lineTo(
-        x +
-          4 +
-          offsetX,
-        nextY +
-          offsetY,
-      );
-
-      ctx.stroke();
     }
+
+    ctx.closePath();
+
+    /* ---------------------------------------
+       Outer red glow
+    --------------------------------------- */
+
+    ctx.strokeStyle =
+      `rgba(
+        255,
+        60,
+        5,
+        ${
+          0.18 *
+          (
+            1 -
+            progress *
+              0.55
+          )
+        }
+      )`;
+
+    ctx.lineWidth =
+      14;
+
+    ctx.shadowColor =
+      "rgba(255,70,0,0.38)";
+
+    ctx.shadowBlur =
+      14;
+
+    ctx.stroke();
+
+    /* ---------------------------------------
+       Orange burn edge
+    --------------------------------------- */
+
+    ctx.strokeStyle =
+      `rgba(
+        255,
+        125,
+        20,
+        ${
+          0.68 *
+          (
+            1 -
+            progress *
+              0.38
+          )
+        }
+      )`;
+
+    ctx.lineWidth =
+      5;
+
+    ctx.shadowColor =
+      "rgba(255,120,20,0.65)";
+
+    ctx.shadowBlur =
+      8;
+
+    ctx.stroke();
+
+    /* ---------------------------------------
+       White-hot line
+    --------------------------------------- */
+
+    ctx.strokeStyle =
+      `rgba(
+        255,
+        225,
+        150,
+        ${
+          0.78 *
+          (
+            1 -
+            progress *
+              0.5
+          )
+        }
+      )`;
+
+    ctx.lineWidth =
+      1.5;
+
+    ctx.shadowColor =
+      "rgba(255,220,140,0.6)";
+
+    ctx.shadowBlur =
+      4;
+
+    ctx.stroke();
 
     ctx.restore();
   }
 
   /* =======================================================
-     Main loop
+     Emit particles
+
+     Only generate particles from points still
+     inside this recipe card.
+  ======================================================== */
+
+  function emitEdgeParticles(
+    burnPoints: BurnPoint[],
+    progress: number,
+  ) {
+    const count =
+      progress <
+      0.65
+        ? 11
+        : 6;
+
+    for (
+      let i = 0;
+      i < count;
+      i += 1
+    ) {
+      const index =
+        Math.floor(
+          Math.random() *
+            burnPoints.length,
+        );
+
+      const point =
+        burnPoints[index];
+
+      /* ---------------------------------------
+         Ignore burn edge portions already
+         outside this specific card.
+      --------------------------------------- */
+
+      if (
+        point.x < 0 ||
+        point.x > width ||
+        point.y < 0 ||
+        point.y > height
+      ) {
+        continue;
+      }
+
+      const angle =
+        Math.atan2(
+          point.y -
+            originY,
+          point.x -
+            originX,
+        );
+
+      const roll =
+        Math.random();
+
+      let type: ParticleType =
+        "ember";
+
+      if (
+        roll < 0.18
+      ) {
+        type =
+          "fire";
+      } else if (
+        roll > 0.86
+      ) {
+        type =
+          "ash";
+      }
+
+      addParticle(
+        point.x +
+          random(
+            -2,
+            2,
+          ),
+
+        point.y +
+          random(
+            -2,
+            2,
+          ),
+
+        angle,
+
+        type,
+      );
+    }
+  }
+
+  /* =======================================================
+     Main animation
   ======================================================== */
 
   function frame(
@@ -917,12 +1453,56 @@ function startBurnAnimation(
       now -
       startTime;
 
-    const progress =
+    const rawProgress =
       Math.min(
         elapsed /
           duration,
         1,
       );
+
+    const progress =
+      easeOutCubic(
+        rawProgress,
+      );
+
+    const baseRadius =
+      3 +
+      progress *
+        Math.max(
+          0,
+          maximumRadius -
+            3,
+        );
+
+    const burnPoints =
+      buildBurnPoints(
+        originX,
+        originY,
+        baseRadius,
+        progress,
+        burnSeed,
+        maximumRadius,
+      );
+
+    /* ---------------------------------------
+       Actual card clip
+    --------------------------------------- */
+
+    const clipData =
+      buildClipPathData(
+        width,
+        height,
+        burnPoints,
+      );
+
+    path.setAttribute(
+      "d",
+      clipData,
+    );
+
+    /* ---------------------------------------
+       Clear FX layer
+    --------------------------------------- */
 
     ctx.clearRect(
       0,
@@ -931,108 +1511,32 @@ function startBurnAnimation(
       canvasHeight,
     );
 
-    /*
-     * THIS is what removes the burned part.
-     *
-     * No blur.
-     * No fake dark overlay.
-     *
-     * The card itself gets clipped.
-     */
-
-    card.style.clipPath =
-      buildBurnClipPath(
-        width,
-        height,
-        progress,
-      );
-
-    card.style.setProperty(
-      "-webkit-clip-path",
-      buildBurnClipPath(
-        width,
-        height,
-        progress,
-      ),
-    );
-
-    /* ------------------------------------------
-       Draw irregular glowing burn edge
-    ------------------------------------------- */
+    /* ---------------------------------------
+       Draw burn edge
+    --------------------------------------- */
 
     drawBurnEdge(
-      progress,
+      burnPoints,
+      rawProgress,
     );
 
-    /* ------------------------------------------
-       Emit particles from random X positions
-    ------------------------------------------- */
+    /* ---------------------------------------
+       Emit particles
+    --------------------------------------- */
 
-    const emissionCount =
-      progress <
-      0.8
-        ? 14
-        : 8;
-
-    for (
-      let i = 0;
-      i <
-      emissionCount;
-      i += 1
+    if (
+      rawProgress <
+      0.92
     ) {
-      const x =
-        random(
-          0,
-          width,
-        );
-
-      const y =
-        getBurnFrontY(
-          x,
-          width,
-          height,
-          progress,
-        );
-
-      if (
-        y >= -25 &&
-        y <=
-          height + 25
-      ) {
-        const chance =
-          Math.random();
-
-        if (
-          chance <
-          0.25
-        ) {
-          addParticle(
-            x,
-            y,
-            "fire",
-          );
-        } else if (
-          chance <
-          0.82
-        ) {
-          addParticle(
-            x,
-            y,
-            "ember",
-          );
-        } else {
-          addParticle(
-            x,
-            y,
-            "ash",
-          );
-        }
-      }
+      emitEdgeParticles(
+        burnPoints,
+        rawProgress,
+      );
     }
 
-    /* ------------------------------------------
-       Particle render
-    ------------------------------------------- */
+    /* ---------------------------------------
+       Draw particles
+    --------------------------------------- */
 
     for (
       let i =
@@ -1066,7 +1570,8 @@ function startBurnAnimation(
     }
 
     if (
-      progress < 1
+      rawProgress <
+      1
     ) {
       animationId =
         requestAnimationFrame(
@@ -1076,15 +1581,17 @@ function startBurnAnimation(
       return;
     }
 
-    /*
-     * Completely remove card visually.
-     */
+    /* Final state */
 
     card.style.visibility =
       "hidden";
   }
 
-  initialBurst();
+  /* =======================================================
+     Start
+  ======================================================== */
+
+  createIgnitionBurst();
 
   animationId =
     requestAnimationFrame(
@@ -1092,15 +1599,15 @@ function startBurnAnimation(
     );
 
   /* =======================================================
-     Navigate
+     Navigate after animation
   ======================================================== */
 
   window.setTimeout(
     () => {
       onComplete();
     },
-
-    duration + 50,
+    duration +
+      70,
   );
 
   /* =======================================================
@@ -1115,6 +1622,8 @@ function startBurnAnimation(
 
       fx.remove();
 
+      svg.remove();
+
       card.style.clipPath =
         "";
 
@@ -1125,11 +1634,15 @@ function startBurnAnimation(
       card.style.visibility =
         "";
 
+      card.style.transition =
+        "";
+
       delete card.dataset
         .burning;
     },
 
-    duration + 1500,
+    duration +
+      1400,
   );
 }
 
@@ -1141,7 +1654,7 @@ export default function BurnRecipeLink({
   href,
   className,
   children,
-  duration = 950,
+  duration = 1000,
 }: BurnRecipeLinkProps) {
   const router =
     useRouter();
@@ -1152,6 +1665,16 @@ export default function BurnRecipeLink({
   function handleClick(
     event: MouseEvent<HTMLAnchorElement>,
   ) {
+    /*
+     * Preserve native browser behaviour:
+     *
+     * Ctrl click
+     * Cmd click
+     * Shift click
+     * Alt click
+     * middle-click
+     */
+
     if (
       event.defaultPrevented ||
       event.button !== 0 ||
@@ -1189,12 +1712,9 @@ export default function BurnRecipeLink({
 
     startBurnAnimation(
       card,
-
       event.clientX,
       event.clientY,
-
       duration,
-
       () => {
         router.push(
           href,
@@ -1208,7 +1728,8 @@ export default function BurnRecipeLink({
           false;
       },
 
-      duration + 300,
+      duration +
+        350,
     );
   }
 
