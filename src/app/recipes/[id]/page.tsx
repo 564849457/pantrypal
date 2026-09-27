@@ -1,3 +1,4 @@
+import { readRecipe } from "@/lib/recipe-reader";
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { notFound } from "next/navigation";
@@ -9,32 +10,14 @@ type RecipePageProps = {
   }>;
 };
 
-export default async function RecipePage({
-  params,
-}: RecipePageProps) {
+export default async function RecipePage({ params }: RecipePageProps) {
   const { id } = await params;
 
   // ------------------------------------------------
   // Recipe
   // ------------------------------------------------
 
-  const recipe = await prisma.recipe.findUnique({
-    where: {
-      id,
-    },
-
-    include: {
-      category: true,
-
-      ingredients: {
-        include: {
-          ingredient: true,
-        },
-      },
-
-      ratings: true,
-    },
-  });
+  const recipe = await readRecipe(id);
 
   if (!recipe) {
     notFound();
@@ -66,28 +49,26 @@ export default async function RecipePage({
       isOwner = user.id === recipe.userId;
 
       // Favorite
-      const favorite =
-        await prisma.favorite.findUnique({
-          where: {
-            userId_recipeId: {
-              userId: user.id,
-              recipeId: recipe.id,
-            },
+      const favorite = await prisma.favorite.findUnique({
+        where: {
+          userId_recipeId: {
+            userId: user.id,
+            recipeId: recipe.id,
           },
-        });
+        },
+      });
 
       isFavorited = Boolean(favorite);
 
       // Current user's rating
-      const rating =
-        await prisma.rating.findUnique({
-          where: {
-            userId_recipeId: {
-              userId: user.id,
-              recipeId: recipe.id,
-            },
+      const rating = await prisma.rating.findUnique({
+        where: {
+          userId_recipeId: {
+            userId: user.id,
+            recipeId: recipe.id,
           },
-        });
+        },
+      });
 
       userRating = rating?.score ?? null;
     }
@@ -97,16 +78,7 @@ export default async function RecipePage({
   // Rating statistics
   // ------------------------------------------------
 
-  const ratingCount = recipe.ratings.length;
-
-  const averageRating =
-    ratingCount > 0
-      ? recipe.ratings.reduce(
-          (total, rating) =>
-            total + rating.score,
-          0,
-        ) / ratingCount
-      : 0;
+  const { ratingCount, averageRating } = recipe;
 
   // ------------------------------------------------
   // Client

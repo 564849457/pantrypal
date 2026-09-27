@@ -1,23 +1,11 @@
 import { unstable_cache } from "next/cache";
 
-import prisma from "@/lib/prisma";
+import { readRecipes } from "@/lib/recipe-reader";
 import HomeClient from "./HomeClient";
 
 const getFeaturedRecipes = unstable_cache(
-  async () => {
-    return prisma.recipe.findMany({
-      include: {
-        category: true,
-      },
-
-      orderBy: {
-        createdAt: "desc",
-      },
-
-      take: 3,
-    });
-  },
-  ["home-featured-recipes"],
+  async () => readRecipes(3),
+  ["home-featured-recipes", process.env.RECIPE_API_URL || "prisma"],
   {
     revalidate: 300,
     tags: ["recipes"],

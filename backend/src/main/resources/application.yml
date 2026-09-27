@@ -1,0 +1,20 @@
+server:
+  address: ${API_BIND_ADDRESS:127.0.0.1}
+  port: ${PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: pantrypal-api
+  datasource:
+    url: ${JDBC_DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      read-only: true
+      maximum-pool-size: 5
+      connection-timeout: 10000
+  sql:
+    init:
+      mode: never
