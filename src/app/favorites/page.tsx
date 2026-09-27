@@ -45,5 +45,5 @@ export default async function FavoritesPage() {
     (favorite) => favorite.recipe,
   );
 
-  return <RecipesClient recipes={recipes} />;
+  return <RecipesClient recipes={recipes} collection="favorites" />;
 }

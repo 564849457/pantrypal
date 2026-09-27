@@ -128,11 +128,11 @@ export default function NewRecipeForm({
   };
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-10">
+    <main id="main-content" className="pp-form-page min-h-screen px-5 py-10">
       <div className="mx-auto max-w-4xl">
         <Link
           href="/recipes"
-          className="text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
+          className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
         >
           ← {t.back}
         </Link>
@@ -164,7 +164,7 @@ export default function NewRecipeForm({
                     name="titleEn"
                     required
                     placeholder="Mapo Tofu"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
 
@@ -177,7 +177,7 @@ export default function NewRecipeForm({
                     name="titleZh"
                     required
                     placeholder="麻婆豆腐"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
               </div>
@@ -195,7 +195,7 @@ export default function NewRecipeForm({
                     name="descriptionEn"
                     rows={4}
                     placeholder="A classic Sichuan-style tofu dish..."
-                    className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
 
@@ -208,7 +208,7 @@ export default function NewRecipeForm({
                     name="descriptionZh"
                     rows={4}
                     placeholder="经典川味家常菜..."
-                    className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
               </div>
@@ -227,7 +227,7 @@ export default function NewRecipeForm({
                     required
                     rows={9}
                     placeholder={"1. Prepare the ingredients...\n2. Heat the pan..."}
-                    className="w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
 
@@ -241,7 +241,7 @@ export default function NewRecipeForm({
                     required
                     rows={9}
                     placeholder={"1. 准备食材...\n2. 锅中加热..."}
-                    className="w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full resize-y rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
               </div>
@@ -257,7 +257,7 @@ export default function NewRecipeForm({
                 name="categoryId"
                 required
                 defaultValue=""
-                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
               >
                 <option value="" disabled>
                   {t.selectCategory}
@@ -290,7 +290,7 @@ export default function NewRecipeForm({
                       type="number"
                       min="0"
                       placeholder="15"
-                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-zinc-500"
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 pr-14 outline-none transition-colors focus:border-zinc-500"
                     />
 
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
@@ -310,7 +310,7 @@ export default function NewRecipeForm({
                       type="number"
                       min="0"
                       placeholder="20"
-                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-zinc-500"
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 pr-14 outline-none transition-colors focus:border-zinc-500"
                     />
 
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
@@ -329,7 +329,7 @@ export default function NewRecipeForm({
                     type="number"
                     min="1"
                     placeholder="2"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
                   />
                 </div>
               </div>
@@ -344,7 +344,7 @@ export default function NewRecipeForm({
               <input
                 name="imageUrl"
                 placeholder="/recipes/example.jpg"
-                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition focus:border-zinc-500"
+                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none transition-colors focus:border-zinc-500"
               />
 
               <p className="mt-2 text-xs text-zinc-500">
@@ -370,7 +370,7 @@ export default function NewRecipeForm({
                 <button
                   type="button"
                   onClick={addIngredient}
-                  className="self-start rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 sm:self-auto"
+                  className="self-start rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:self-auto"
                 >
                   {t.addIngredient}
                 </button>
@@ -395,7 +395,7 @@ export default function NewRecipeForm({
                           onClick={() =>
                             removeIngredient(index)
                           }
-                          className="text-sm font-medium text-red-500 transition hover:text-red-700"
+                          className="text-sm font-medium text-red-500 transition-colors hover:text-red-700"
                         >
                           {t.remove}
                         </button>
@@ -419,7 +419,7 @@ export default function NewRecipeForm({
                               event.target.value,
                             )
                           }
-                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition focus:border-zinc-500"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition-colors focus:border-zinc-500"
                         />
                       </div>
 
@@ -439,7 +439,7 @@ export default function NewRecipeForm({
                               event.target.value,
                             )
                           }
-                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition focus:border-zinc-500"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition-colors focus:border-zinc-500"
                         />
                       </div>
                     </div>
@@ -463,7 +463,7 @@ export default function NewRecipeForm({
                               event.target.value,
                             )
                           }
-                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition focus:border-zinc-500"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition-colors focus:border-zinc-500"
                         />
                       </div>
 
@@ -483,7 +483,7 @@ export default function NewRecipeForm({
                               event.target.value,
                             )
                           }
-                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition focus:border-zinc-500"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 outline-none transition-colors focus:border-zinc-500"
                         />
                       </div>
                     </div>
@@ -502,7 +502,7 @@ export default function NewRecipeForm({
             <div className="border-t border-zinc-200 pt-6">
               <button
                 type="submit"
-                className="w-full rounded-xl bg-zinc-900 px-5 py-3.5 font-semibold text-white transition hover:bg-zinc-700"
+                className="w-full rounded-xl bg-[#ae421f] px-5 py-3.5 font-semibold text-white transition-colors hover:bg-[#903419]"
               >
                 {t.create}
               </button>

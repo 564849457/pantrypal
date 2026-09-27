@@ -1,73 +1,62 @@
 "use client";
-
+import type { ReactNode } from "react";
 import Link from "next/link";
-
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/hooks/useLanguage";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-export default function NavbarClient() {
-  const language = useLanguage();
-
+export default function NavbarClient({ children }: { children?: ReactNode }) {
+  const zh = useLanguage() === "zh";
+  const pathname = usePathname();
+  const links = [
+    { href: "/", label: zh ? "首页" : "Home", active: pathname === "/" },
+    {
+      href: "/recipes",
+      label: zh ? "发现菜谱" : "Recipes",
+      active: pathname.startsWith("/recipes"),
+    },
+    {
+      href: "/favorites",
+      label: zh ? "我的收藏" : "Saved",
+      active: pathname === "/favorites",
+    },
+  ];
   return (
-    <div className="flex flex-1 items-center justify-between">
-      {/* Logo */}
-      <Link
-        href="/"
-        className="group relative text-xl font-bold tracking-tight text-white"
-      >
-        <span className="relative z-10">
-          PantryPal
-        </span>
-
-        {/* subtle logo glow */}
-        <span className="absolute -inset-3 -z-0 rounded-xl bg-orange-500/0 blur-xl transition duration-300 group-hover:bg-orange-500/15" />
-      </Link>
-
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Recipes */}
-        <Link
-          href="/recipes"
-          className="group relative overflow-hidden rounded-xl px-4 py-2 text-sm font-medium text-zinc-300 transition duration-300 hover:text-white"
-        >
-          {/* Glass hover layer */}
-          <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100">
-            <span className="absolute inset-0 rounded-xl border border-white/15 bg-white/10 backdrop-blur-xl" />
-
-            <span className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent" />
-
-            <span className="absolute -inset-4 bg-orange-500/10 blur-2xl" />
+    <header className="pp-header">
+      <a href="#main-content" className="pp-skip-link">
+        {zh ? "跳到内容" : "Skip to content"}
+      </a>
+      <div className="pp-container pp-header-inner">
+        <Link href="/" className="pp-wordmark" aria-label="PantryPal home">
+          <span className="pp-logo-mark" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            >
+              <path d="M4 11h16a8 8 0 0 1-16 0Z" />
+              <path d="M8 7c-2-2 2-3 0-5M13 7c-2-2 2-3 0-5M8 21h8" />
+            </svg>
           </span>
-
-          <span className="relative z-10">
-            {language === "zh"
-              ? "菜谱"
-              : "Recipes"}
-          </span>
+          PantryPal<span>.</span>
         </Link>
-
-        {/* Favorites */}
-        <Link
-          href="/favorites"
-          className="group relative overflow-hidden rounded-xl px-4 py-2 text-sm font-medium text-zinc-300 transition duration-300 hover:text-white"
-        >
-          <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100">
-            <span className="absolute inset-0 rounded-xl border border-white/15 bg-white/10 backdrop-blur-xl" />
-
-            <span className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent" />
-
-            <span className="absolute -inset-4 bg-orange-500/10 blur-2xl" />
-          </span>
-
-          <span className="relative z-10">
-            {language === "zh"
-              ? "收藏"
-              : "Favorites"}
-          </span>
-        </Link>
-
-        {/* Language */}
-        <LanguageSwitcher />
+        <nav className="pp-nav" aria-label={zh ? "主导航" : "Main navigation"}>
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={link.active ? "page" : undefined}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="pp-header-actions">
+          <LanguageSwitcher />
+          {children}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

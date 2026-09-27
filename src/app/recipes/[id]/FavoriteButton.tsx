@@ -26,7 +26,7 @@ export default function FavoriteButton({
     return (
         <Link
         href="/api/auth/signin"
-        className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+        className="pp-button pp-button-secondary"
         >
         {language === "zh"
             ? "登录后收藏"
@@ -45,10 +45,10 @@ export default function FavoriteButton({
     >
       <button
         type="submit"
-        className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+        className={`pp-button ${
           favorited
-            ? "border-zinc-900 bg-zinc-900 text-white"
-            : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+            ? "pp-button-dark"
+            : "pp-button-secondary"
         }`}
       >
         {favorited

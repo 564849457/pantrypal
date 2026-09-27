@@ -95,7 +95,7 @@ export default function RatingStars({
                   ? `评分 ${score} 星`
                   : `Rate ${score} stars`
               }
-              className="p-0.5 text-2xl transition hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 min-w-9 p-1 text-2xl transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span
                 className={
