@@ -1,3 +1,4 @@
+import { authenticatedJavaGet, javaApiEnabled } from "@/lib/java-session";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import EditRecipeForm from "./EditRecipeForm";
@@ -45,6 +46,14 @@ export default async function EditRecipePage({
 if (!session?.user?.email) {
   redirect("/api/auth/signin");
 }
+
+  if (javaApiEnabled) {
+    const permission = await authenticatedJavaGet(`/api/v1/me/recipes/${encodeURIComponent(id)}/edit-permission`);
+    if (permission.status === 401) redirect("/api/auth/signin");
+    if (permission.status === 403) redirect(`/recipes/${encodeURIComponent(id)}`);
+    if (permission.status === 404) notFound();
+    if (!permission.ok) throw new Error(`Java permission check returned ${permission.status}`);
+  }
 
   const user = await prisma.user.findUnique({
     where: {

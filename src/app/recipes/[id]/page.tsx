@@ -1,3 +1,4 @@
+import { javaApiEnabled, javaRecipeAccess } from "@/lib/java-session";
 import { readRecipe } from "@/lib/recipe-reader";
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -33,7 +34,12 @@ export default async function RecipePage({ params }: RecipePageProps) {
   let isFavorited = false;
   let userRating: number | null = null;
 
-  if (session?.user?.email) {
+  let isLoggedIn = Boolean(session?.user);
+  if (javaApiEnabled) {
+    const access = await javaRecipeAccess(id);
+    isLoggedIn = access !== null;
+    if (access) ({ isOwner, isFavorited, userRating } = access);
+  } else if (session?.user?.email) {
     const user = await prisma.user.findUnique({
       where: {
         email: session.user.email,
@@ -88,7 +94,7 @@ export default async function RecipePage({ params }: RecipePageProps) {
     <RecipeDetailClient
       recipe={recipe}
       isOwner={isOwner}
-      isLoggedIn={Boolean(session?.user)}
+      isLoggedIn={isLoggedIn}
       isFavorited={isFavorited}
       averageRating={averageRating}
       ratingCount={ratingCount}
