@@ -1,4 +1,5 @@
 import "server-only";
+import type { CatalogQuery } from "@/lib/recipe-query";
 import prisma from "@/lib/prisma";
 import type { RecipeCardData } from "@/components/RecipeCard";
 
@@ -34,31 +35,89 @@ async function api<T>(path: string): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
-export async function readRecipes(limit?: number) {
-  if (!baseUrl) {
-    return prisma.recipe.findMany({
-      include: {
-        category: true,
-        ingredients: { include: { ingredient: true } },
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-      take: limit,
+
+export type RecipeCategory = { id: string; nameZh: string; nameEn: string };
+
+export async function readRecipePage(query: CatalogQuery) {
+  const { q, category, page, size } = query;
+  if (baseUrl) {
+    const params = new URLSearchParams({
+      q,
+      category,
+      page: String(page),
+      size: String(size),
     });
-  }
-  // The current UI filters locally, so load all pages instead of silently
-  // hiding recipes beyond the API's first page. Move filters server-side later.
-  const recipes: Recipe[] = [];
-  const size = limit ? Math.min(limit, 100) : 100;
-  for (let page = 0; page <= 100000; page++) {
-    const result = await api<RecipePage>(`?page=${page}&size=${size}`);
+    const result = await api<RecipePage>(`?${params}`);
     if (!result || !Array.isArray(result.items))
       throw new Error("Invalid recipe API response");
-    recipes.push(...result.items);
-    if (!result.hasNext || (limit && recipes.length >= limit)) {
-      return limit ? recipes.slice(0, limit) : recipes;
-    }
+    return result;
   }
-  throw new Error("Recipe API pagination limit exceeded");
+  // Prisma/Postgres contains uses LIKE: escape wildcard characters so search
+  // has the same literal substring meaning as the Java API's strpos query.
+  const contains = q.replace(/[\\%_]/g, "\\$&");
+  const text = { contains, mode: "insensitive" as const };
+  const rows = await prisma.recipe.findMany({
+    where: {
+      ...(category ? { categoryId: category } : {}),
+      ...(q
+        ? {
+            OR: [
+              { titleZh: text },
+              { titleEn: text },
+              { descriptionZh: text },
+              { descriptionEn: text },
+              {
+                category: { is: { OR: [{ nameZh: text }, { nameEn: text }] } },
+              },
+              {
+                ingredients: {
+                  some: {
+                    ingredient: { OR: [{ nameZh: text }, { nameEn: text }] },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    },
+    include: { category: true, ingredients: { include: { ingredient: true } } },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    skip: page * size,
+    take: size + 1,
+  });
+  return {
+    items: rows.slice(0, size),
+    page,
+    size,
+    hasNext: rows.length > size,
+  };
+}
+
+export async function readRecipeCategories(): Promise<RecipeCategory[]> {
+  if (baseUrl) {
+    const result = await api<RecipeCategory[]>("/categories");
+    if (!Array.isArray(result))
+      throw new Error(
+        "Recipe API categories unavailable; update the Java backend first",
+      );
+    return result;
+  }
+  return prisma.category.findMany({
+    where: { recipes: { some: {} } },
+    select: { id: true, nameZh: true, nameEn: true },
+    orderBy: [{ nameEn: "asc" }, { id: "asc" }],
+  });
+}
+
+export async function readRecipes(limit = 3) {
+  return (
+    await readRecipePage({
+      q: "",
+      category: "",
+      page: 0,
+      size: Math.min(100, Math.max(1, limit)),
+    })
+  ).items;
 }
 
 export async function readRecipe(id: string): Promise<Recipe | null> {

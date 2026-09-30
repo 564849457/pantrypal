@@ -31,7 +31,7 @@ java -version
 
 ```powershell
 cd D:\pantrypal
-$env:JDBC_DATABASE_URL = "jdbc:postgresql://HOST:5432/DATABASE?sslmode=verify-full"
+$env:JDBC_DATABASE_URL = "jdbc:postgresql://HOST:5432/DATABASE?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory"
 $env:DB_USERNAME = "ROLE"
 $env:DB_PASSWORD = [System.Net.NetworkCredential]::new("", (Read-Host "Neon database password" -AsSecureString)).Password
 java -jar .\backend\pantrypal-api.jar
@@ -65,9 +65,10 @@ npm.cmd run dev
 
 刷新首页、菜谱列表、详情页。Java 负责公开菜谱读取，Next.js 继续负责登录、用户归属、收藏、评分和写入。
 无需 NEXT_PUBLIC_ 前缀；Java 接口由 Next.js 服务端调用，浏览器不直接调用它。
-列表仍由前端搜索/筛选；适配层读取所有分页，避免只显示前 100 条。
-这适合当前小型菜谱集，大规模数据时需改为服务端搜索分页。
-列表和首页继续使用原来的 300 秒缓存及 recipes 标签失效机制。
+列表已改为 Java/数据库搜索筛选分页，每次只取一页；输入后按 Enter 或点击搜索。
+列表页默认每页 12 条；条件写入 URL，切换条件回到第一页，翻页保留条件。
+分类从 GET /api/v1/recipes/categories 独立读取，不随当前页变化。
+列表不使用持久数据缓存；首页仍保留 300 秒缓存及 recipes 标签失效机制。
 Java 停止后不会偷偷切回 Prisma，而会显示请求失败，避免掩盖部署错误。
 
 ## 4. 回退
@@ -77,9 +78,14 @@ Java 停止后不会偷偷切回 Prisma，而会显示请求失败，避免掩�
 
 ## API
 
+q 为可选关键词（最多 120 字符），按字面子串匹配中英文菜名、描述、分类和食材；忽略英文大小写。
+category 为可选分类 ID（最多 128 字符），与 q 同时生效。
+GET /api/v1/recipes/categories 返回拥有菜谱的分类。
+
+
 | 请求 | 行为 |
 | --- | --- |
-| GET /api/v1/recipes?page=0&size=24 | items、page、size、hasNext；page 从 0 开始，size 1–100 |
+| GET /api/v1/recipes?q=虾&category=分类ID&page=0&size=24 | items、page、size、hasNext；page 从 0 开始，size 1–100 |
 | GET /api/v1/recipes/{id} | 菜谱、分类、食材、评分均值和数量 |
 | 无效分页 | 400 |
 | 不存在的菜谱 | 404 |

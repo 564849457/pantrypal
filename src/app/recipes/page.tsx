@@ -1,19 +1,24 @@
-import { unstable_cache } from "next/cache";
+import { readRecipeCategories, readRecipePage } from "@/lib/recipe-reader";
+import { parseRecipeQuery } from "@/lib/recipe-query";
+import CatalogClient from "./CatalogClient";
 
-import { readRecipes } from "@/lib/recipe-reader";
-import RecipesClient from "./RecipesClient";
-
-const getRecipes = unstable_cache(
-  async () => readRecipes(),
-  ["recipes-list", process.env.RECIPE_API_URL || "prisma"],
-  {
-    revalidate: 300,
-    tags: ["recipes"],
-  },
-);
-
-export default async function RecipesPage() {
-  const recipes = await getRecipes();
-
-  return <RecipesClient recipes={recipes} />;
+export default async function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = parseRecipeQuery(await searchParams);
+  const [result, categories] = await Promise.all([
+    readRecipePage(query),
+    readRecipeCategories(),
+  ]);
+  return (
+    <CatalogClient
+      key={JSON.stringify(query)}
+      query={query}
+      recipes={result.items}
+      hasNext={result.hasNext}
+      categories={categories}
+    />
+  );
 }

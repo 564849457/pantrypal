@@ -13,13 +13,19 @@ public class RecipeRepository {
  private final JdbcClient jdbc;
  private final ObjectMapper mapper;
  private final String select;
+ private final String filter;
  public RecipeRepository(JdbcClient jdbc, ObjectMapper mapper) throws IOException {
   this.jdbc = jdbc; this.mapper = mapper;
+  this.filter = new ClassPathResource("recipe-filter.sql").getContentAsString(StandardCharsets.UTF_8);
   this.select = new ClassPathResource("recipe-select.sql").getContentAsString(StandardCharsets.UTF_8);
  }
- public List<RecipeDto> list(int offset, int limit) {
-  return jdbc.sql(select + " ORDER BY r.\"createdAt\" DESC, r.id ASC LIMIT :limit OFFSET :offset")
-   .param("limit", limit).param("offset", offset).query(String.class).list().stream().map(this::decode).toList();
+ public List<RecipeDto> list(int offset, int limit, String q, String category) {
+  return jdbc.sql(select + filter + " ORDER BY r.\"createdAt\" DESC, r.id ASC LIMIT :limit OFFSET :offset")
+   .param("q", q).param("category", category).param("limit", limit).param("offset", offset).query(String.class).list().stream().map(this::decode).toList();
+ }
+ public List<RecipeDto.Category> categories() {
+  return jdbc.sql("SELECT c.id, c.\"nameZh\", c.\"nameEn\" FROM \"Category\" c WHERE EXISTS (SELECT 1 FROM \"Recipe\" r WHERE r.\"categoryId\" = c.id) ORDER BY c.\"nameEn\", c.id")
+   .query((rs, row) -> new RecipeDto.Category(rs.getString(1), rs.getString(2), rs.getString(3))).list();
  }
  public Optional<RecipeDto> find(String id) {
   return jdbc.sql(select + " WHERE r.id = :id").param("id", id).query(String.class).optional().map(this::decode);

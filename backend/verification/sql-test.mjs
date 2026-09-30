@@ -27,5 +27,31 @@ assert.equal(nullable.category,null);assert.deepEqual(nullable.ingredients,[]);a
 assert.equal((await db.query(sql + ' WHERE r.id = $1',["r1' OR 1=1 --"])).rows.length,0);
 const page = await db.query(sql + ' ORDER BY r."createdAt" DESC,r.id ASC LIMIT $1 OFFSET $2',[1,1]);
 assert.equal(decode(page.rows[0]).id,'r2');
+
+// Execute the exact production WHERE fragment, with bound parameters.
+const filter = (await readFile(new URL('../src/main/resources/recipe-filter.sql', import.meta.url), 'utf8'))
+ .replaceAll(':category', '$1').replaceAll(':q', '$2');
+async function search(q = '', category = '', limit = 10, offset = 0) {
+ return (await db.query(sql + filter + ' ORDER BY r."createdAt" DESC, r.id ASC LIMIT $3 OFFSET $4',
+  [category, q, limit, offset])).rows.map(decode);
+}
+assert.equal((await search('虾'))[0].id, 'r1');
+assert.equal((await search('SHRIMP'))[0].id, 'r1');
+assert.equal((await search('海鲜'))[0].id, 'r1');
+assert.equal((await search('', 'cat')).length, 1);
+assert.equal((await search('Simple', 'cat')).length, 0);
+assert.equal((await search('', 'missing')).length, 0);
+assert.equal((await search("' OR 1=1 --")).length, 0);
+assert.equal((await search('%')).length, 0);
+assert.equal((await search('_')).length, 0);
+await db.exec(`UPDATE "Recipe" SET "descriptionEn"='100% tasty_value' WHERE id='r2';
+ INSERT INTO "Ingredient" (id,"nameZh","nameEn") VALUES ('ing2','海盐','Sea Salt');
+ INSERT INTO "RecipeIngredient" (id,"recipeId","ingredientId") VALUES ('ri2','r1','ing2');`);
+assert.equal((await search('salt'))[0].id, 'r1'); // Ingredient-only match.
+assert.equal((await search('%'))[0].id, 'r2'); // Literal wildcard characters.
+assert.equal((await search('_'))[0].id, 'r2');
+assert.equal((await search('sea')).length, 1); // Category and ingredient matches do not duplicate rows.
+assert.equal((await search('', '', 1, 1))[0].id, 'r2');
+assert.equal((await search('', '', 1, 2)).length, 0);
 await db.close();
-console.log('SQL checks passed against Prisma migrations in PGlite: bilingual, nullable, ingredients, ratings, pagination, parameter binding.');
+console.log('SQL checks passed: schema compatibility, bilingual search, ingredients, combined filters, literal wildcards, injection strings, stable pagination, empty pages.');
